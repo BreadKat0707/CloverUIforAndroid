@@ -28,6 +28,7 @@ import io.github.composefluent.component.Text
  *
  * @param title 主标题文字
  * @param subtitle 副标题文字，null 时不显示
+ * @param indicator 左侧选中/播放指示条，位于内容 padding 之外、贴条目左边缘
  * @param leading 左侧图标/封面/占位内容
  * @param trailing 右侧控件（箭头、开关、更多按钮等）
  * @param enabled 是否可用，false 时文字变灰且不可点击
@@ -44,6 +45,7 @@ fun CloverBasicItem(
     title: String,
     modifier: Modifier = Modifier,
     subtitle: String? = null,
+    indicator: @Composable (() -> Unit)? = null,
     leading: @Composable (() -> Unit)? = null,
     trailing: @Composable (RowScope.() -> Unit)? = null,
     enabled: Boolean = true,
@@ -73,36 +75,45 @@ fun CloverBasicItem(
             .fillMaxWidth()
             .background(backgroundColor)
             .clip(shape)
-            .then(clickableModifier)
-            .padding(contentPadding),
+            .then(clickableModifier),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(CloverSpacing.md)
     ) {
-        leading?.invoke()
+        indicator?.invoke()
 
-        Column(
-            modifier = Modifier.weight(1f),
-            verticalArrangement = Arrangement.Center
+        Row(
+            modifier = Modifier
+                .weight(1f)
+                .padding(contentPadding),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(CloverSpacing.md)
         ) {
-            Text(
-                text = title,
-                style = CloverTypography.itemTitle,
-                color = titleColor,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis
-            )
-            if (!subtitle.isNullOrEmpty()) {
+            leading?.invoke()
+
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.Center
+            ) {
                 Text(
-                    text = subtitle,
-                    style = CloverTypography.itemSubtitle,
-                    color = subtitleColor,
+                    text = title,
+                    style = CloverTypography.itemTitle,
+                    color = titleColor,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis
                 )
+                if (!subtitle.isNullOrEmpty()) {
+                    Text(
+                        text = subtitle,
+                        style = CloverTypography.itemSubtitle,
+                        color = subtitleColor,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis
+                    )
+                }
             }
-        }
 
-        trailing?.invoke(this)
+            trailing?.invoke(this)
+        }
     }
 }
 

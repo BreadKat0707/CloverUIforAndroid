@@ -9,9 +9,12 @@ object CloverSizes {
     // 列表项
     val listItemHeight = 56.dp
     val listItemHeightLarge = 64.dp
-    val listItemHorizontalPadding = 16.dp
+    val listItemHorizontalPadding = 4.dp
     val listItemVerticalPadding = 8.dp
     val listItemCornerRadius = 12.dp
+
+    // 列表容器到屏幕边缘的边距
+    val listOuterHorizontalPadding = 16.dp
 
     // 封面
     val coverSmall = 48.dp
@@ -33,7 +36,7 @@ object CloverSizes {
     val sheetCornerRadius = 24.dp
     val menuCornerRadius = 20.dp
     val dialogCornerRadius = 24.dp
-    val sheetHorizontalPadding = 16.dp
+    val sheetHorizontalPadding = 12.dp
     val sheetVerticalPadding = 24.dp
 
     // 按钮

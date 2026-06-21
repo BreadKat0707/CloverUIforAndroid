@@ -2,14 +2,12 @@ package cn.lemondrop.clover
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
@@ -19,6 +17,7 @@ import androidx.compose.ui.unit.dp
  * Clover Design 标准列表项
  *
  * 基于 [CloverBasicItem]，增加了固定高度、左侧选中/播放指示条。
+ * 指示条紧贴条目左边缘显示。
  *
  * @param title 主标题
  * @param subtitle 副标题，null 时不显示
@@ -52,6 +51,21 @@ fun CloverListItem(
         else -> 0.dp
     }
 
+    val indicator: @Composable (() -> Unit) = {
+        if (indicatorHeight > 0.dp) {
+            Box(
+                modifier = Modifier
+                    .width(3.dp)
+                    .height(indicatorHeight)
+                    .clip(RoundedCornerShape(1.5.dp))
+                    .background(CloverColors.playingIndicator)
+            )
+        } else {
+            // 占位，保持选中/未选中项的 leading 对齐
+            Spacer(modifier = Modifier.width(3.dp))
+        }
+    }
+
     CloverBasicItem(
         title = title,
         subtitle = subtitle,
@@ -59,32 +73,9 @@ fun CloverListItem(
         onLongClick = onLongClick,
         modifier = modifier
             .height(if (isLarge) CloverSizes.listItemHeightLarge else CloverSizes.listItemHeight),
-        backgroundColor = backgroundColor,
-        leading = {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(CloverSpacing.md)
-            ) {
-                if (indicatorHeight > 0.dp) {
-                    Box(
-                        modifier = Modifier.width(3.dp),
-                        contentAlignment = Alignment.Center
-                    ) {
-                        Box(
-                            modifier = Modifier
-                                .width(3.dp)
-                                .height(indicatorHeight)
-                                .clip(RoundedCornerShape(1.5.dp))
-                                .background(CloverColors.playingIndicator)
-                        )
-                    }
-                } else {
-                    // 占位，保持 leading 对齐
-                    Spacer(modifier = Modifier.width(3.dp))
-                }
-                leading?.invoke()
-            }
-        },
-        trailing = trailing?.let { { it() } }
+        indicator = indicator,
+        leading = leading,
+        trailing = trailing?.let { { it() } },
+        backgroundColor = backgroundColor
     )
 }

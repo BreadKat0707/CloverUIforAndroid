@@ -46,7 +46,7 @@ fun CloverEmptyList(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .padding(CloverSizes.listItemHorizontalPadding),
+            .padding(CloverSizes.listOuterHorizontalPadding),
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.Center
     ) {
