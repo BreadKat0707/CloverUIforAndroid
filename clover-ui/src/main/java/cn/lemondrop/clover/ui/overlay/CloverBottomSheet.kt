@@ -8,6 +8,10 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.layout.Box
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.nestedscroll.NestedScrollConnection
+import androidx.compose.ui.input.nestedscroll.NestedScrollSource
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -40,6 +44,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.HazeTint
@@ -161,6 +166,7 @@ fun CloverBottomSheet(
             ) {
                 DragHandle(
                     dragOffset = dragOffset,
+                    title = title,
                     onDrag = { deltaPx ->
                         scope.launch {
                             dragOffset.snapTo((dragOffset.value + deltaPx).coerceAtLeast(0f))
@@ -176,25 +182,63 @@ fun CloverBottomSheet(
                     }
                 )
 
-                if (!title.isNullOrEmpty()) {
-                    Text(
-                        text = title,
-                        style = CloverTypography.titleBar,
-                        color = if (isDark) CloverColors.onSurfaceDark else CloverColors.onSurfaceLight,
-                        modifier = Modifier.padding(
-                            horizontal = CloverBottomSheetDefaults.horizontalPadding,
-                            vertical = CloverSpacing.md
-                        )
-                    )
+                // 内容区（与 sheet 面板内缘保持 16.dp 边距，底部额外留白）
+                val contentNestedScroll = remember {
+                    object : NestedScrollConnection {
+                        override fun onPreScroll(
+                            available: Offset,
+                            source: NestedScrollSource
+                        ): Offset {
+                            // 如果 sheet 已经被下拉，优先把滑动用来移动 sheet
+                            if (dragOffset.value > 0f && available.y != 0f) {
+                                val newOffset = (dragOffset.value + available.y)
+                                    .coerceAtLeast(0f)
+                                val consumed = newOffset - dragOffset.value
+                                scope.launch { dragOffset.snapTo(newOffset) }
+                                return Offset(0f, consumed)
+                            }
+                            return Offset.Zero
+                        }
+
+                        override fun onPostScroll(
+                            consumed: Offset,
+                            available: Offset,
+                            source: NestedScrollSource
+                        ): Offset {
+                            // 子列表滚动到顶后继续向下滑，把剩余滑动交给 sheet 下拉
+                            if (available.y > 0f) {
+                                val newOffset = (dragOffset.value + available.y)
+                                    .coerceAtLeast(0f)
+                                scope.launch { dragOffset.snapTo(newOffset) }
+                                return Offset(0f, available.y)
+                            }
+                            return Offset.Zero
+                        }
+
+                        override suspend fun onPostFling(
+                            consumed: Velocity,
+                            available: Velocity
+                        ): Velocity {
+                            val threshold = with(density) {
+                                CloverBottomSheetDefaults.dragDismissThreshold.toPx()
+                            }
+                            if (dragOffset.value > threshold || available.y > 2000f) {
+                                dismissSheet()
+                            } else if (dragOffset.value > 0f) {
+                                scope.launch { dragOffset.animateTo(0f, spring()) }
+                            }
+                            return super.onPostFling(consumed, available)
+                        }
+                    }
                 }
 
-                // 内容区（与 sheet 面板内缘保持 16.dp 边距，底部额外留白）
                 Column(
                     modifier = Modifier
                         .fillMaxWidth()
                         .weight(1f, fill = false)
                         .padding(horizontal = CloverBottomSheetDefaults.horizontalPadding)
-                        .padding(bottom = CloverBottomSheetDefaults.contentBottomPadding),
+                        .padding(bottom = CloverBottomSheetDefaults.contentBottomPadding)
+                        .nestedScroll(contentNestedScroll),
                     content = content
                 )
             }
@@ -203,15 +247,19 @@ fun CloverBottomSheet(
 }
 
 /**
- * 顶部拖拽手柄
+ * 顶部拖拽手柄（包含可选标题）
+ *
+ * 整个头部区域都能下拉收起 Sheet，避免标题区手势穿透到父布局。
  */
 @Composable
 private fun DragHandle(
     dragOffset: Animatable<Float, AnimationVector1D>,
+    title: String?,
     onDrag: (Float) -> Unit,
     onDragEnd: () -> Unit
 ) {
     val alpha = if (dragOffset.value > 0.5f) 0.7f else 0.4f
+    val isDark = isCloverDark()
 
     Box(
         modifier = Modifier
@@ -221,26 +269,45 @@ private fun DragHandle(
                     onDragEnd = { onDragEnd() },
                     onVerticalDrag = { change, dragAmount ->
                         change.consume()
-                        if (dragAmount > 0) {
+                        // 始终允许向下拖拽；sheet 已被下拉时也允许向上拖回
+                        if (dragAmount > 0f || dragOffset.value > 0f) {
                             onDrag(dragAmount)
                         }
                     }
                 )
             }
             .padding(vertical = 16.dp),
-        contentAlignment = Alignment.Center
+        contentAlignment = Alignment.TopStart
     ) {
-        val isDark = isCloverDark()
-        Box(
-            modifier = Modifier
-                .width(36.dp)
-                .height(4.dp)
-                .clip(RoundedCornerShape(2.dp))
-                .background(
-                    if (isDark) CloverColors.onSurfaceVariantDark else CloverColors.onSurfaceVariantLight
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally
+        ) {
+            Box(
+                modifier = Modifier
+                    .width(36.dp)
+                    .height(4.dp)
+                    .clip(RoundedCornerShape(2.dp))
+                    .background(
+                        if (isDark) CloverColors.onSurfaceVariantDark else CloverColors.onSurfaceVariantLight
+                    )
+                    .alpha(alpha)
+            )
+
+            if (!title.isNullOrEmpty()) {
+                Text(
+                    text = title,
+                    style = CloverTypography.titleBar,
+                    color = if (isDark) CloverColors.onSurfaceDark else CloverColors.onSurfaceLight,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(
+                            horizontal = CloverBottomSheetDefaults.horizontalPadding,
+                            vertical = CloverSpacing.md
+                        )
                 )
-                .alpha(alpha)
-        )
+            }
+        }
     }
 }
 
@@ -280,13 +347,15 @@ fun CloverMenuItem(
 ) {
     val isDark = isCloverDark()
     val normalTitleColor = if (isDark) CloverColors.onSurfaceDark else CloverColors.onSurfaceLight
-    val titleColor = if (isDestructive) {
-        if (isDark) CloverColors.errorDark else CloverColors.errorLight
-    } else normalTitleColor
-    val iconColor = if (isDestructive) {
-        if (isDark) CloverColors.errorDark else CloverColors.errorLight
-    } else {
-        if (isDark) CloverColors.onSurfaceVariantDark else CloverColors.onSurfaceVariantLight
+    val titleColor = when {
+        isSelected -> CloverColors.accent
+        isDestructive -> if (isDark) CloverColors.errorDark else CloverColors.errorLight
+        else -> normalTitleColor
+    }
+    val iconColor = when {
+        isSelected -> CloverColors.accent
+        isDestructive -> if (isDark) CloverColors.errorDark else CloverColors.errorLight
+        else -> if (isDark) CloverColors.onSurfaceVariantDark else CloverColors.onSurfaceVariantLight
     }
 
     val indicator: @Composable (() -> Unit) = {

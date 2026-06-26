@@ -20,9 +20,9 @@ object CloverColors {
     val surfaceVariantDark = Color(0xFF3A3A3A)
 
     // 主强调色
-    val accent = Color(0xFF7C4DFF)
-    val onAccentLight = Color(0xFFFFFFFF)
-    val onAccentDark = Color(0xFFFFFFFF)
+    val accent = Color(0xFF869AFF)
+    val onAccentLight = Color(0xFF000000)
+    val onAccentDark = Color(0xFF000000)
 
     // 错误/危险
     val errorLight = Color(0xFFB3261E)
