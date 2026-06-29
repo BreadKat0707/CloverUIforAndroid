@@ -31,7 +31,7 @@ fun CloverSettingItem(
     onClick: (() -> Unit)? = null
 ) {
     val isDark = isCloverDark()
-    val iconTint = if (isDark) CloverColors.onSurfaceVariantDark else CloverColors.onSurfaceVariantLight
+    val iconTint = LocalCloverColorScheme.current.onSurfaceVariant
 
     CloverBasicItem(
         title = title,

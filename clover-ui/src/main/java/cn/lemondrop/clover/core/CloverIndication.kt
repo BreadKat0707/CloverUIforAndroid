@@ -98,7 +98,7 @@ fun Modifier.cloverClickable(
     color: Color? = null
 ): Modifier {
     val isDark = isCloverDark()
-    val overlayColor = color ?: (if (isDark) CloverColors.onSurfaceDark else CloverColors.onSurfaceLight)
+    val overlayColor = color ?: (LocalCloverColorScheme.current.onSurface)
         .copy(alpha = CloverPressOverlayAlpha)
     val interactionSource = remember { MutableInteractionSource() }
 

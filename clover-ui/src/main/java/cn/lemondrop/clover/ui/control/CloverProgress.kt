@@ -23,8 +23,8 @@ import androidx.compose.ui.unit.dp
 fun CloverLinearProgressIndicator(
     progress: Float? = null,
     modifier: Modifier = Modifier,
-    color: Color = CloverColors.accent,
-    trackColor: Color = if (isCloverDark()) CloverColors.surfaceVariantDark else CloverColors.surfaceVariantLight
+    color: Color = LocalCloverColorScheme.current.primary,
+    trackColor: Color = LocalCloverColorScheme.current.surfaceVariant
 ) {
     if (progress != null) {
         LinearProgressIndicator(
@@ -58,8 +58,8 @@ fun CloverLinearProgressIndicator(
 fun CloverCircularProgressIndicator(
     progress: Float? = null,
     modifier: Modifier = Modifier,
-    color: Color = CloverColors.accent,
-    trackColor: Color = if (isCloverDark()) CloverColors.surfaceVariantDark else CloverColors.surfaceVariantLight,
+    color: Color = LocalCloverColorScheme.current.primary,
+    trackColor: Color = LocalCloverColorScheme.current.surfaceVariant,
     size: androidx.compose.ui.unit.Dp = 48.dp,
     strokeWidth: androidx.compose.ui.unit.Dp = 4.dp
 ) {

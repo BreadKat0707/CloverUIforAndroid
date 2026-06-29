@@ -16,7 +16,7 @@ fun CloverSectionHeader(
     modifier: Modifier = Modifier
 ) {
     val isDark = isCloverDark()
-    val color = if (isDark) CloverColors.onSurfaceVariantDark else CloverColors.onSurfaceVariantLight
+    val color = LocalCloverColorScheme.current.onSurfaceVariant
 
     Text(
         text = title,

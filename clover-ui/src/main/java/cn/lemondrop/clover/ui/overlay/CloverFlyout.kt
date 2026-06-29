@@ -40,7 +40,7 @@ fun CloverFlyout(
     content: @Composable ColumnScope.() -> Unit
 ) {
     val isDark = isCloverDark()
-    val bgColor = if (isDark) CloverColors.surfaceDark else CloverColors.surfaceLight
+    val bgColor = LocalCloverColorScheme.current.surface
 
     AnimatedVisibility(
         visible = visible,
@@ -52,8 +52,8 @@ fun CloverFlyout(
             modifier = Modifier
                 .fillMaxSize()
                 .background(
-                    if (isDark) CloverColors.scrimDark.copy(alpha = 0.3f)
-                    else CloverColors.scrimLight.copy(alpha = 0.3f)
+                    if (isDark) LocalCloverColorScheme.current.scrim.copy(alpha = 0.3f)
+                    else LocalCloverColorScheme.current.scrim.copy(alpha = 0.3f)
                 )
                 .clickable(
                     interactionSource = null,

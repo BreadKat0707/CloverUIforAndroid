@@ -59,9 +59,9 @@ object CloverHazeDefaults {
      * 带默认透明度的表面叠色
      */
     @Composable
-    fun surfaceTint(alpha: Float = 0.40f): Color {
+    fun surfaceTint(alpha: Float = 0.70f): Color {
         val isDark = isCloverDark()
-        return (if (isDark) CloverColors.surfaceDark else CloverColors.surfaceLight)
+        return (LocalCloverColorScheme.current.surface)
             .copy(alpha = alpha)
     }
 }

@@ -40,7 +40,7 @@ fun CloverDropdownMenu(
     offset: DpOffset = DpOffset(0.dp, 6.dp),
     content: @Composable ColumnScope.() -> Unit
 ) {
-    val containerColor = if (isCloverDark()) CloverColors.surfaceDark else CloverColors.surfaceLight
+    val containerColor = LocalCloverColorScheme.current.surface
 
     MaterialTheme(
         colorScheme = MaterialTheme.colorScheme.copy(
@@ -93,8 +93,8 @@ fun CloverDropdownMenuItem(
         leadingIcon = leadingIcon,
         trailingIcon = trailingIcon,
         colors = MenuDefaults.itemColors(
-            textColor = if (isCloverDark()) CloverColors.onSurfaceDark else CloverColors.onSurfaceLight,
-            disabledTextColor = if (isCloverDark()) CloverColors.onSurfaceVariantDark else CloverColors.onSurfaceVariantLight
+            textColor = LocalCloverColorScheme.current.onSurface,
+            disabledTextColor = LocalCloverColorScheme.current.onSurfaceVariant
         )
     )
 }

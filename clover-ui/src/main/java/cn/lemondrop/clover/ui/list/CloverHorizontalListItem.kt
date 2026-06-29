@@ -50,8 +50,8 @@ fun CloverHorizontalListItem(
     shape: RoundedCornerShape = RoundedCornerShape(CloverSizes.coverCornerRadius)
 ) {
     val isDark = isCloverDark()
-    val titleColor = if (isDark) CloverColors.onSurfaceDark else CloverColors.onSurfaceLight
-    val subtitleColor = if (isDark) CloverColors.onSurfaceVariantDark else CloverColors.onSurfaceVariantLight
+    val titleColor = LocalCloverColorScheme.current.onSurface
+    val subtitleColor = LocalCloverColorScheme.current.onSurfaceVariant
 
     Column(
         modifier = modifier

@@ -75,7 +75,7 @@ object CloverRevealDefaults {
     val contentPadding: PaddingValues = PaddingValues(horizontal = 16.dp, vertical = 10.dp)
 
     @Composable
-    fun backgroundColor(): Color = if (isCloverDark()) CloverColors.surfaceDark else CloverColors.surfaceLight
+    fun backgroundColor(): Color = LocalCloverColorScheme.current.surface
 
     /**
      * 返回当前主题下的 Reveal 颜色组合。

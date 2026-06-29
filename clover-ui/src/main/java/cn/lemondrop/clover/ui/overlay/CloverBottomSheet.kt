@@ -1,5 +1,6 @@
 package cn.lemondrop.clover
 
+import androidx.activity.compose.PredictiveBackHandler
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.AnimationVector1D
 import androidx.compose.animation.core.spring
@@ -46,10 +47,12 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
+import cn.lemondrop.clover.material.CloverMaterial
+import cn.lemondrop.clover.material.cloverAcrylic
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.HazeTint
-import dev.chrisbanes.haze.hazeEffect
 import io.github.composefluent.component.Text
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 
 /**
@@ -78,7 +81,7 @@ fun CloverBottomSheet(
     content: @Composable ColumnScope.() -> Unit
 ) {
     val isDark = isCloverDark()
-    val bgColor = if (isDark) CloverColors.surfaceDark else CloverColors.surfaceLight
+    val bgColor = LocalCloverColorScheme.current.surface
     val statusBarPadding = WindowInsets.statusBarsIgnoringVisibility.asPaddingValues().calculateTopPadding()
     val navBarPadding = WindowInsets.navigationBarsIgnoringVisibility.asPaddingValues().calculateBottomPadding()
 
@@ -108,6 +111,19 @@ fun CloverBottomSheet(
             }
         }
 
+        // 系统返回：预测返回手势驱动 sheet 下滑收起
+        PredictiveBackHandler(enabled = true) { progress ->
+            try {
+                progress.collect { event ->
+                    val p = event.progress.coerceIn(0f, 1f)
+                    dragOffset.snapTo(p * screenHeightPx)
+                }
+                dismissSheet()
+            } catch (_: CancellationException) {
+                scope.launch { dragOffset.animateTo(0f, animationSpec = tween(200)) }
+            }
+        }
+
         Box(
             modifier = Modifier.fillMaxSize(),
             contentAlignment = Alignment.BottomCenter
@@ -117,7 +133,7 @@ fun CloverBottomSheet(
                 modifier = Modifier
                     .fillMaxSize()
                     .background(
-                        (if (isDark) CloverColors.scrimDark else CloverColors.scrimLight)
+                        (LocalCloverColorScheme.current.scrim)
                             .copy(alpha = scrimAlpha)
                     )
                     .clickable(
@@ -143,19 +159,13 @@ fun CloverBottomSheet(
             val panelModifier = if (hazeState != null) {
                 basePanelModifier
                     .background(Color.Transparent)
-                    .hazeEffect(state = hazeState) {
-                        backgroundColor = Color.Transparent
-                        blurRadius = 50.dp
+                    .cloverAcrylic(
+                        state = hazeState,
+                        backgroundColor = Color.Transparent,
                         tints = hazeTints.ifEmpty {
-                            listOf(
-                                HazeTint(
-                                    (if (isDark) CloverColors.surfaceDark else CloverColors.surfaceLight)
-                                        .copy(alpha = 0.40f)
-                                )
-                            )
+                            CloverMaterial.Acrylic.tints(baseColor = bgColor)
                         }
-                        noiseFactor = 0.1f
-                    }
+                    )
             } else {
                 basePanelModifier.background(bgColor)
             }
@@ -289,7 +299,7 @@ private fun DragHandle(
                     .height(4.dp)
                     .clip(RoundedCornerShape(2.dp))
                     .background(
-                        if (isDark) CloverColors.onSurfaceVariantDark else CloverColors.onSurfaceVariantLight
+                        LocalCloverColorScheme.current.onSurfaceVariant
                     )
                     .alpha(alpha)
             )
@@ -298,7 +308,7 @@ private fun DragHandle(
                 Text(
                     text = title,
                     style = CloverTypography.titleBar,
-                    color = if (isDark) CloverColors.onSurfaceDark else CloverColors.onSurfaceLight,
+                    color = LocalCloverColorScheme.current.onSurface,
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(
@@ -346,16 +356,16 @@ fun CloverMenuItem(
     isDestructive: Boolean = false
 ) {
     val isDark = isCloverDark()
-    val normalTitleColor = if (isDark) CloverColors.onSurfaceDark else CloverColors.onSurfaceLight
+    val normalTitleColor = LocalCloverColorScheme.current.onSurface
     val titleColor = when {
-        isSelected -> CloverColors.accent
-        isDestructive -> if (isDark) CloverColors.errorDark else CloverColors.errorLight
+        isSelected -> LocalCloverColorScheme.current.primary
+        isDestructive -> LocalCloverColorScheme.current.error
         else -> normalTitleColor
     }
     val iconColor = when {
-        isSelected -> CloverColors.accent
-        isDestructive -> if (isDark) CloverColors.errorDark else CloverColors.errorLight
-        else -> if (isDark) CloverColors.onSurfaceVariantDark else CloverColors.onSurfaceVariantLight
+        isSelected -> LocalCloverColorScheme.current.primary
+        isDestructive -> LocalCloverColorScheme.current.error
+        else -> LocalCloverColorScheme.current.onSurfaceVariant
     }
 
     val indicator: @Composable (() -> Unit) = {
@@ -365,7 +375,7 @@ fun CloverMenuItem(
                     .width(3.dp)
                     .height(24.dp)
                     .clip(RoundedCornerShape(1.5.dp))
-                    .background(CloverColors.playingIndicator)
+                    .background(LocalCloverColorScheme.current.primary)
             )
         } else {
             // 占位，保持选中/未选中项的图标对齐

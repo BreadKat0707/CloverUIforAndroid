@@ -55,8 +55,8 @@ fun CloverBottomNavbar(
     ) {
         items.forEachIndexed { index, item ->
             val selected = index == selectedIndex
-            val tint = if (selected) CloverColors.accent else {
-                if (isCloverDark()) CloverColors.onSurfaceVariantDark else CloverColors.onSurfaceVariantLight
+            val tint = if (selected) LocalCloverColorScheme.current.primary else {
+                LocalCloverColorScheme.current.onSurfaceVariant
             }
 
             Column(

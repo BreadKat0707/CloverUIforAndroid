@@ -39,7 +39,7 @@ fun CloverListSkeleton(
     count: Int = 6
 ) {
     val isDark = isCloverDark()
-    val baseColor = if (isDark) CloverColors.surfaceVariantDark else CloverColors.surfaceVariantLight
+    val baseColor = LocalCloverColorScheme.current.surfaceVariant
 
     val shimmerColors = listOf(
         baseColor.copy(alpha = 0.4f),

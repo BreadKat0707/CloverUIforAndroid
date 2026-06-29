@@ -35,9 +35,9 @@ fun CloverRadioButton(
     val interactionSource = remember { MutableInteractionSource() }
 
     val borderColor = when {
-        !enabled -> CloverColors.onSurfaceVariantDark.copy(alpha = 0.3f)
-        selected -> CloverColors.accent
-        else -> if (isCloverDark()) CloverColors.onSurfaceVariantDark else CloverColors.onSurfaceVariantLight
+        !enabled -> LocalCloverColorScheme.current.onSurfaceVariant.copy(alpha = 0.3f)
+        selected -> LocalCloverColorScheme.current.primary
+        else -> LocalCloverColorScheme.current.onSurfaceVariant
     }
 
     val dotSize = animateDpAsState(
@@ -70,7 +70,7 @@ fun CloverRadioButton(
                     .size(dotSize)
                     .clip(CircleShape)
                     .background(
-                        if (enabled) CloverColors.accent else CloverColors.accent.copy(alpha = 0.4f)
+                        if (enabled) LocalCloverColorScheme.current.primary else LocalCloverColorScheme.current.primary.copy(alpha = 0.4f)
                     )
             )
         }

@@ -135,8 +135,8 @@ object CloverBasicItemDefaults {
 
     @Composable
     fun colors(
-        titleColor: Color = if (isCloverDark()) CloverColors.onSurfaceDark else CloverColors.onSurfaceLight,
-        subtitleColor: Color = if (isCloverDark()) CloverColors.onSurfaceVariantDark else CloverColors.onSurfaceVariantLight,
+        titleColor: Color = LocalCloverColorScheme.current.onSurface,
+        subtitleColor: Color = LocalCloverColorScheme.current.onSurfaceVariant,
         disabledTitleColor: Color = titleColor.copy(alpha = DisabledAlpha),
         disabledSubtitleColor: Color = subtitleColor.copy(alpha = DisabledAlpha)
     ): CloverBasicItemColors = CloverBasicItemColors(

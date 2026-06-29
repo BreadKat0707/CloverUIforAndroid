@@ -58,7 +58,7 @@ fun CloverListItem(
                     .width(3.dp)
                     .height(indicatorHeight)
                     .clip(RoundedCornerShape(1.5.dp))
-                    .background(CloverColors.playingIndicator)
+                    .background(LocalCloverColorScheme.current.primary)
             )
         } else {
             // 占位，保持选中/未选中项的 leading 对齐

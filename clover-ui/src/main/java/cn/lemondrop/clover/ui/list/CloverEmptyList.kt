@@ -39,9 +39,9 @@ fun CloverEmptyList(
     modifier: Modifier = Modifier
 ) {
     val isDark = isCloverDark()
-    val titleColor = if (isDark) CloverColors.onSurfaceDark else CloverColors.onSurfaceLight
-    val bodyColor = if (isDark) CloverColors.onSurfaceVariantDark else CloverColors.onSurfaceVariantLight
-    val iconColor = if (isDark) CloverColors.onSurfaceVariantDark else CloverColors.onSurfaceVariantLight
+    val titleColor = LocalCloverColorScheme.current.onSurface
+    val bodyColor = LocalCloverColorScheme.current.onSurfaceVariant
+    val iconColor = LocalCloverColorScheme.current.onSurfaceVariant
 
     Column(
         modifier = modifier
@@ -81,7 +81,7 @@ fun CloverEmptyList(
             Text(
                 text = actionLabel,
                 style = CloverTypography.button,
-                color = CloverColors.accent,
+                color = LocalCloverColorScheme.current.primary,
                 modifier = Modifier.cloverClickable(
                     onClick = onActionClick,
                     cornerRadius = 8.dp

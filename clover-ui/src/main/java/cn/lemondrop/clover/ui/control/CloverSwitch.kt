@@ -38,9 +38,9 @@ fun CloverSwitch(
     enabled: Boolean = true
 ) {
     val trackColor = when {
-        !enabled -> if (checked) CloverColors.accent.copy(alpha = 0.4f) else CloverColors.surfaceVariantDark.copy(alpha = 0.3f)
-        checked -> CloverColors.accent
-        else -> if (isCloverDark()) CloverColors.surfaceVariantDark else CloverColors.surfaceVariantLight
+        !enabled -> if (checked) LocalCloverColorScheme.current.primary.copy(alpha = 0.4f) else LocalCloverColorScheme.current.surfaceVariant.copy(alpha = 0.3f)
+        checked -> LocalCloverColorScheme.current.primary
+        else -> LocalCloverColorScheme.current.surfaceVariant
     }
 
     val thumbColor = if (isCloverDark()) Color.White else Color.White

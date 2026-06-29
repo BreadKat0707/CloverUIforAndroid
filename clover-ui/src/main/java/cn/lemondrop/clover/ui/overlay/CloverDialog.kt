@@ -39,7 +39,7 @@ fun CloverDialog(
     content: @Composable ColumnScope.() -> Unit
 ) {
     val isDark = isCloverDark()
-    val bgColor = if (isDark) CloverColors.surfaceDark else CloverColors.surfaceLight
+    val bgColor = LocalCloverColorScheme.current.surface
 
     Box(
         modifier = modifier.fillMaxSize(),
@@ -50,8 +50,8 @@ fun CloverDialog(
             modifier = Modifier
                 .fillMaxSize()
                 .background(
-                    if (isDark) CloverColors.scrimDark.copy(alpha = 0.5f)
-                    else CloverColors.scrimLight.copy(alpha = 0.4f)
+                    if (isDark) LocalCloverColorScheme.current.scrim.copy(alpha = 0.5f)
+                    else LocalCloverColorScheme.current.scrim.copy(alpha = 0.4f)
                 )
                 .clickable(
                     interactionSource = null,
@@ -74,7 +74,7 @@ fun CloverDialog(
                 Text(
                     text = title,
                     style = CloverTypography.titleBar,
-                    color = if (isDark) CloverColors.onSurfaceDark else CloverColors.onSurfaceLight,
+                    color = LocalCloverColorScheme.current.onSurface,
                     modifier = Modifier.padding(bottom = CloverSpacing.md)
                 )
             }

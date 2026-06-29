@@ -6,10 +6,10 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.staticCompositionLocalOf
 
 /**
- * Clover Design 主题
+ * Clover Design 主题。
  *
- * 提供局部的深色/亮色模式覆盖。
- * 调用方可以用 [CloverTheme] 包裹局部 UI，让该范围内的组件跟随 [darkTheme]，
+ * 提供局部的深色/亮色模式覆盖以及颜色方案。
+ * 调用方可以用 [CloverTheme] 包裹局部 UI，让该范围内的组件跟随 [darkTheme] 和 [colorScheme]，
  * 而不影响应用其它部分。
  */
 object CloverTheme {
@@ -19,6 +19,13 @@ object CloverTheme {
     val isDark: Boolean
         @Composable
         get() = isCloverDark()
+
+    /**
+     * 当前作用域内的颜色方案。
+     */
+    val colorScheme: CloverColorScheme
+        @Composable
+        get() = LocalCloverColorScheme.current
 }
 
 /**
@@ -43,15 +50,45 @@ fun isCloverDark(): Boolean {
 /**
  * Clover 主题包裹器。
  *
+ * @param colorScheme 颜色方案，默认根据 [dynamicColor] 与 [darkTheme] 生成
+ * @param dynamicColor 是否使用系统 Material You 动态取色（Android 12+）
  * @param darkTheme 是否使用深色模式
  * @param content 主题作用域内的内容
+ */
+@Composable
+fun CloverTheme(
+    colorScheme: CloverColorScheme = rememberCloverColorScheme(
+        dynamicColor = false,
+        darkTheme = isSystemInDarkTheme()
+    ),
+    dynamicColor: Boolean = false,
+    darkTheme: Boolean = isSystemInDarkTheme(),
+    content: @Composable () -> Unit
+) {
+    val scheme = rememberCloverColorScheme(dynamicColor = dynamicColor, darkTheme = darkTheme)
+    CompositionLocalProvider(
+        LocalCloverColorScheme provides scheme,
+        LocalCloverDarkMode provides darkTheme
+    ) {
+        content()
+    }
+}
+
+/**
+ * Clover 主题包裹器（只切换深浅，使用默认静态配色）。
  */
 @Composable
 fun CloverTheme(
     darkTheme: Boolean,
     content: @Composable () -> Unit
 ) {
-    CompositionLocalProvider(LocalCloverDarkMode provides darkTheme) {
+    CompositionLocalProvider(
+        LocalCloverColorScheme provides rememberCloverColorScheme(
+            dynamicColor = false,
+            darkTheme = darkTheme
+        ),
+        LocalCloverDarkMode provides darkTheme
+    ) {
         content()
     }
 }

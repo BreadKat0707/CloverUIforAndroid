@@ -70,16 +70,16 @@ object CloverButtonDefaults {
      */
     @Composable
     fun filledColors(
-        containerColor: Color = CloverColors.accent,
-        contentColor: Color = CloverColors.onAccentLight,
+        containerColor: Color = LocalCloverColorScheme.current.primary,
+        contentColor: Color = LocalCloverColorScheme.current.onPrimary,
         disabledContainerColor: Color = if (isCloverDark())
-            CloverColors.surfaceVariantDark.copy(alpha = 0.5f)
+            LocalCloverColorScheme.current.surfaceVariant.copy(alpha = 0.5f)
         else
-            CloverColors.surfaceVariantLight.copy(alpha = 0.5f),
+            LocalCloverColorScheme.current.surfaceVariant.copy(alpha = 0.5f),
         disabledContentColor: Color = if (isCloverDark())
-            CloverColors.onSurfaceVariantDark.copy(alpha = 0.4f)
+            LocalCloverColorScheme.current.onSurfaceVariant.copy(alpha = 0.4f)
         else
-            CloverColors.onSurfaceVariantLight.copy(alpha = 0.4f)
+            LocalCloverColorScheme.current.onSurfaceVariant.copy(alpha = 0.4f)
     ): CloverButtonColors = CloverButtonColors(
         containerColor = containerColor,
         contentColor = contentColor,
@@ -92,16 +92,16 @@ object CloverButtonDefaults {
      */
     @Composable
     fun outlinedColors(
-        contentColor: Color = CloverColors.accent,
-        borderColor: Color = CloverColors.accent.copy(alpha = 0.55f),
+        contentColor: Color = LocalCloverColorScheme.current.primary,
+        borderColor: Color = LocalCloverColorScheme.current.primary.copy(alpha = 0.55f),
         disabledContentColor: Color = if (isCloverDark())
-            CloverColors.onSurfaceVariantDark.copy(alpha = 0.4f)
+            LocalCloverColorScheme.current.onSurfaceVariant.copy(alpha = 0.4f)
         else
-            CloverColors.onSurfaceVariantLight.copy(alpha = 0.4f),
+            LocalCloverColorScheme.current.onSurfaceVariant.copy(alpha = 0.4f),
         disabledBorderColor: Color = if (isCloverDark())
-            CloverColors.onSurfaceVariantDark.copy(alpha = 0.2f)
+            LocalCloverColorScheme.current.onSurfaceVariant.copy(alpha = 0.2f)
         else
-            CloverColors.onSurfaceVariantLight.copy(alpha = 0.2f)
+            LocalCloverColorScheme.current.onSurfaceVariant.copy(alpha = 0.2f)
     ): CloverButtonColors = CloverButtonColors(
         containerColor = Color.Transparent,
         contentColor = contentColor,
@@ -116,11 +116,11 @@ object CloverButtonDefaults {
      */
     @Composable
     fun textColors(
-        contentColor: Color = CloverColors.accent,
+        contentColor: Color = LocalCloverColorScheme.current.primary,
         disabledContentColor: Color = if (isCloverDark())
-            CloverColors.onSurfaceVariantDark.copy(alpha = 0.4f)
+            LocalCloverColorScheme.current.onSurfaceVariant.copy(alpha = 0.4f)
         else
-            CloverColors.onSurfaceVariantLight.copy(alpha = 0.4f)
+            LocalCloverColorScheme.current.onSurfaceVariant.copy(alpha = 0.4f)
     ): CloverButtonColors = CloverButtonColors(
         containerColor = Color.Transparent,
         contentColor = contentColor,

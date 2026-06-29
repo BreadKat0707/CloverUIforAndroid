@@ -38,16 +38,16 @@ fun CloverCheckbox(
     val interactionSource = remember { MutableInteractionSource() }
 
     val backgroundColor = when {
-        !enabled && checked -> CloverColors.accent.copy(alpha = 0.4f)
+        !enabled && checked -> LocalCloverColorScheme.current.primary.copy(alpha = 0.4f)
         !enabled -> Color.Transparent
-        checked -> CloverColors.accent
+        checked -> LocalCloverColorScheme.current.primary
         else -> Color.Transparent
     }
 
     val borderColor = when {
-        !enabled -> CloverColors.onSurfaceVariantDark.copy(alpha = 0.3f)
-        checked -> CloverColors.accent
-        else -> if (isCloverDark()) CloverColors.onSurfaceVariantDark else CloverColors.onSurfaceVariantLight
+        !enabled -> LocalCloverColorScheme.current.onSurfaceVariant.copy(alpha = 0.3f)
+        checked -> LocalCloverColorScheme.current.primary
+        else -> LocalCloverColorScheme.current.onSurfaceVariant
     }
 
     val iconAlpha = animateFloatAsState(

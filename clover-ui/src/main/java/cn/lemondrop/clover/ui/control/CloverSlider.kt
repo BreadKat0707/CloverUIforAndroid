@@ -29,8 +29,8 @@ fun CloverSlider(
 ) {
     val interactionSource = remember { MutableInteractionSource() }
 
-    val accent = CloverColors.accent
-    val trackInactive = if (isCloverDark()) CloverColors.surfaceVariantDark else CloverColors.surfaceVariantLight
+    val accent = LocalCloverColorScheme.current.primary
+    val trackInactive = LocalCloverColorScheme.current.surfaceVariant
 
     Slider(
         value = value,

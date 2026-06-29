@@ -31,6 +31,7 @@ object CloverSizes {
     val bottomNavHeight = 64.dp
     val topAppBarHeight = 64.dp
     val navigationRailWidth = 80.dp
+    val navigationViewWidth = 280.dp
 
     // 弹窗/菜单
     val sheetCornerRadius = 24.dp
