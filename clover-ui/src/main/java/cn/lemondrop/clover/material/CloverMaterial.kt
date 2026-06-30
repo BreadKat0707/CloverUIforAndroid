@@ -18,7 +18,8 @@ import dev.chrisbanes.haze.hazeEffect
 /**
  * Clover Design Material 材质系统
  *
- * 目前仅实现 Acrylic（亚克力），后续会加入 Mica。
+ * 包含 Acrylic（亚克力）与 Mica（云母）两种材质参数。
+ * Acrylic 见 [Modifier.cloverAcrylic]，Mica 见 [Modifier.cloverMica]。
  */
 object CloverMaterial {
 
@@ -61,10 +62,46 @@ object CloverMaterial {
     }
 
     /**
-     * Mica（云母）材质参数，后续实现。
+     * Mica（云母）材质参数。
+     *
+     * - 以当前桌面壁纸为基底，重度模糊后只保留色调、不暴露细节
+     * - 叠加深/浅主题色微 tint（Alt 变体更强）
+     * - 覆盖一层低透明度噪点，模拟云母颗粒感
+     * - 取不到壁纸时回退到主题 surface 色
+     *
+     * 具体绘制见 [Modifier.cloverMica] 与 [CloverMicaSurface]。
      */
     object Mica {
-        // TODO: 实现 Mica 效果
+        /** 壁纸模糊强度（通过离屏降采样近似，避免模糊到内容层）。 */
+        val blurRadius: Dp = 120.dp
+
+        /** 噪点纹理边长（像素）。 */
+        const val noiseTextureSize: Int = 256
+
+        /** 默认变体 tint 透明度。 */
+        const val tintAlpha: Float = 0.08f
+
+        /** Alt 变体 tint 透明度。 */
+        const val tintAlphaAlt: Float = 0.16f
+
+        /** 默认变体噪点透明度。 */
+        const val noiseAlpha: Float = 0.04f
+
+        /** Alt 变体噪点透明度。 */
+        const val noiseAlphaAlt: Float = 0.06f
+
+        /**
+         * 当前变体的 tint 颜色：默认取 secondary，Alt 取 primary。
+         */
+        @Composable
+        fun tintColor(isAlt: Boolean): Color {
+            val scheme = LocalCloverColorScheme.current
+            return if (isAlt) scheme.primary else scheme.secondary
+        }
+
+        /** 取不到壁纸时的回退底色。 */
+        @Composable
+        fun fallbackColor(): Color = LocalCloverColorScheme.current.surface
     }
 }
 
