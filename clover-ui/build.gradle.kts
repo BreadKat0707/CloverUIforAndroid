@@ -4,6 +4,11 @@ plugins {
     `maven-publish`
 }
 
+val cloverUiVersion: String = project.findProperty("cloverUiVersion")?.toString()
+    ?: error("Missing 'cloverUiVersion' in gradle.properties")
+
+version = cloverUiVersion
+
 android {
     namespace = "cn.lemondrop.clover"
     compileSdk {
@@ -75,7 +80,7 @@ publishing {
         create<MavenPublication>("release") {
             groupId = "cn.lemondrop.clover"
             artifactId = "clover-ui"
-            version = "0.1.0-SNAPSHOT"
+            version = cloverUiVersion
             afterEvaluate {
                 from(components["release"])
             }

@@ -158,7 +158,7 @@ fun CloverBottomSheet(
 
             val panelModifier = if (hazeState != null) {
                 basePanelModifier
-                    .background(Color.Transparent)
+                    .background(bgColor) // 先画一层保底背景，防止 Haze 在某些尺寸/GPU 上失效时透明
                     .cloverAcrylic(
                         state = hazeState,
                         backgroundColor = Color.Transparent,
