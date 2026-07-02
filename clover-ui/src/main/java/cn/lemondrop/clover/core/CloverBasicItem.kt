@@ -73,8 +73,8 @@ fun CloverBasicItem(
     Row(
         modifier = modifier
             .fillMaxWidth()
-            .background(backgroundColor)
             .clip(shape)
+            .background(backgroundColor, shape)
             .then(clickableModifier),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(CloverSpacing.md)

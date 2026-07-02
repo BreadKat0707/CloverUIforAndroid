@@ -19,6 +19,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.foundation.gestures.detectTapGestures
 import io.github.composefluent.component.Text
 
 /**
@@ -63,37 +65,37 @@ fun CloverDialog(
         )
 
         // 弹窗面板
-        Column(
-            modifier = Modifier
-                .widthIn(max = 400.dp)
-                .padding(horizontal = 24.dp)
-                .clip(RoundedCornerShape(CloverSizes.dialogCornerRadius))
-                .background(bgColor)
-                .padding(CloverSizes.sheetHorizontalPadding, CloverSizes.sheetVerticalPadding)
-                .clickable(enabled = false) { /* 阻止点击穿透 */ }
+        CompositionLocalProvider(
+            LocalContentColor provides LocalCloverColorScheme.current.onSurface
         ) {
-            if (!title.isNullOrEmpty()) {
-                Text(
-                    text = title,
-                    style = CloverTypography.titleBar,
-                    color = LocalCloverColorScheme.current.onSurface,
-                    modifier = Modifier.padding(bottom = CloverSpacing.md)
-                )
-            }
-
-            CompositionLocalProvider(
-                LocalContentColor provides LocalCloverColorScheme.current.onSurface
-            ) {
-                content()
-            }
-
-            androidx.compose.foundation.layout.Row(
+            Column(
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = CloverSpacing.lg),
-                verticalAlignment = Alignment.CenterVertically
+                    .widthIn(max = 400.dp)
+                    .padding(horizontal = 24.dp)
+                    .clip(RoundedCornerShape(CloverSizes.dialogCornerRadius))
+                    .background(bgColor)
+                    .padding(CloverSizes.sheetHorizontalPadding, CloverSizes.sheetVerticalPadding)
+                    .pointerInput(Unit) { detectTapGestures { /* 阻止点击穿透 */ } }
             ) {
-                buttons()
+                if (!title.isNullOrEmpty()) {
+                    Text(
+                        text = title,
+                        style = CloverTypography.titleBar,
+                        color = LocalCloverColorScheme.current.onSurface,
+                        modifier = Modifier.padding(bottom = CloverSpacing.md)
+                    )
+                }
+
+                content()
+
+                androidx.compose.foundation.layout.Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(top = CloverSpacing.lg),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    buttons()
+                }
             }
         }
     }

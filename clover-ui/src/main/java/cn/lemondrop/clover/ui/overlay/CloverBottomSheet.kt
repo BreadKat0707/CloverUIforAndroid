@@ -33,6 +33,8 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Icon
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
@@ -101,8 +103,14 @@ fun CloverBottomSheet(
             dragOffset.animateTo(0f, animationSpec = tween(300))
         }
 
-        val progress = 1f - (dragOffset.value / screenHeightPx).coerceIn(0f, 1f)
-        val scrimAlpha = if (isDark) 0.5f * progress else 0.4f * progress
+        val progress by remember(dragOffset, screenHeightPx) {
+            derivedStateOf {
+                1f - (dragOffset.value / screenHeightPx).coerceIn(0f, 1f)
+            }
+        }
+        val scrimAlpha by remember(isDark, progress) {
+            derivedStateOf { if (isDark) 0.5f * progress else 0.4f * progress }
+        }
 
         val dismissSheet = {
             scope.launch {
@@ -268,7 +276,9 @@ private fun DragHandle(
     onDrag: (Float) -> Unit,
     onDragEnd: () -> Unit
 ) {
-    val alpha = if (dragOffset.value > 0.5f) 0.7f else 0.4f
+    val alpha by remember(dragOffset) {
+        derivedStateOf { if (dragOffset.value > 0.5f) 0.7f else 0.4f }
+    }
     val isDark = isCloverDark()
 
     Box(

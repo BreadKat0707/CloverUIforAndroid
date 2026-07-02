@@ -22,6 +22,7 @@ import androidx.compose.ui.node.DrawModifierNode
 import androidx.compose.ui.node.DelegatableNode
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 
 /**
@@ -57,8 +58,12 @@ private class CloverIndicationNode(
     private var isHovered by mutableStateOf(false)
     private var isFocused by mutableStateOf(false)
 
+    private var interactionJob: Job? = null
+
     override fun onAttach() {
-        coroutineScope.launch {
+        // 防止重复 attach 导致启动多个收集器
+        if (interactionJob?.isActive == true) return
+        interactionJob = coroutineScope.launch {
             interactionSource.interactions.collect { interaction ->
                 when (interaction) {
                     is PressInteraction.Press -> isPressed = true
@@ -71,6 +76,11 @@ private class CloverIndicationNode(
                 }
             }
         }
+    }
+
+    override fun onDetach() {
+        interactionJob?.cancel()
+        interactionJob = null
     }
 
     override fun ContentDrawScope.draw() {

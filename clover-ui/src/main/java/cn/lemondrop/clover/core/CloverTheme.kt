@@ -57,15 +57,13 @@ fun isCloverDark(): Boolean {
  */
 @Composable
 fun CloverTheme(
-    colorScheme: CloverColorScheme = rememberCloverColorScheme(
-        dynamicColor = false,
-        darkTheme = isSystemInDarkTheme()
-    ),
+    colorScheme: CloverColorScheme? = null,
     dynamicColor: Boolean = false,
     darkTheme: Boolean = isSystemInDarkTheme(),
     content: @Composable () -> Unit
 ) {
-    val scheme = rememberCloverColorScheme(dynamicColor = dynamicColor, darkTheme = darkTheme)
+    val scheme = colorScheme
+        ?: rememberCloverColorScheme(dynamicColor = dynamicColor, darkTheme = darkTheme)
     CompositionLocalProvider(
         LocalCloverColorScheme provides scheme,
         LocalCloverDarkMode provides darkTheme

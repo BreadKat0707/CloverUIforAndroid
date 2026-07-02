@@ -41,6 +41,8 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.ui.draw.alpha
 import cn.lemondrop.clover.material.CloverMaterial
 import cn.lemondrop.clover.material.cloverAcrylic
 import dev.chrisbanes.haze.HazeState
@@ -134,6 +136,7 @@ fun CloverFlyout(
     val density = LocalDensity.current
 
     var panelHeightPx by remember { mutableIntStateOf(0) }
+    var isPanelMeasured by remember { mutableStateOf(false) }
 
     BoxWithConstraints(modifier = modifier.fillMaxSize()) {
         BackHandler(enabled = visible) { onDismiss() }
@@ -199,8 +202,12 @@ fun CloverFlyout(
             ) {
                 FlyoutPanel(
                     hazeState = hazeState,
-                    onMeasured = { panelHeightPx = it },
+                    onMeasured = {
+                        panelHeightPx = it
+                        isPanelMeasured = true
+                    },
                     content = content,
+                    modifier = Modifier.alpha(if (isPanelMeasured) 1f else 0f),
                 )
             }
         } else {
@@ -229,8 +236,12 @@ fun CloverFlyout(
                 ) {
                     FlyoutPanel(
                         hazeState = hazeState,
-                        onMeasured = { panelHeightPx = it },
+                        onMeasured = {
+                            panelHeightPx = it
+                            isPanelMeasured = true
+                        },
                         content = content,
+                        modifier = Modifier.alpha(if (isPanelMeasured) 1f else 0f),
                     )
                 }
             }
@@ -245,10 +256,11 @@ fun CloverFlyout(
 private fun FlyoutPanel(
     hazeState: HazeState?,
     onMeasured: (Int) -> Unit,
+    modifier: Modifier = Modifier,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val surface = LocalCloverColorScheme.current.surface
-    val base = Modifier
+    val base = modifier
         .width(CloverFlyoutDefaults.width)
         .onSizeChanged { onMeasured(it.height) }
         .clip(RoundedCornerShape(CloverFlyoutDefaults.cornerRadius))
