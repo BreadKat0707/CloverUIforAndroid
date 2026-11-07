@@ -38,7 +38,6 @@ fun CloverEmptyList(
     onActionClick: () -> Unit = {},
     modifier: Modifier = Modifier
 ) {
-    val isDark = isCloverDark()
     val titleColor = LocalCloverColorScheme.current.onSurface
     val bodyColor = LocalCloverColorScheme.current.onSurfaceVariant
     val iconColor = LocalCloverColorScheme.current.onSurfaceVariant

@@ -16,6 +16,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.Stable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -52,33 +53,45 @@ import kotlin.math.min
 import kotlin.math.sqrt
 
 /**
- * Clover Design Reveal 边缘辉光按压效果
+ * Clover Design Reveal 按压光效
  *
- * 目标效果：
- * - 指针靠近元素边缘时，元素边框发出淡淡辉光（浅色模式用主色辉光，深色模式用白色/浅主色辉光）。
- * - 按压时辉光增强，并伴随一个以按压点为中心的水波纹向外扩散后消失。
- * - 光效严格限制在当前元素边界附近，不会像聚光灯一样照到相邻元素。
- * - 按压结束后，spotlight 与水波纹会立即进入消失动画，不会残留。
- *
- * 使用方式：
- * - 独立组件：直接对组件应用 [Modifier.cloverReveal]。
- * - 列表/组内：用 [CloverRevealHost] 包裹，子项用 [Modifier.cloverRevealItem] 共享指针状态，
- *   但辉光仍只绘制在各自元素边缘。
+ * 设计原则：
+ * - [CloverRevealHost] 只负责追踪整片区域的指针位置与按压状态，**不绘制任何图形**；
+ * - 子项通过 [cloverRevealItem] 读取共享状态，仅当指针为中心的圆形作用域覆盖到自身时，
+ *   才在自己的边缘绘制辉光；
+ * - 独立组件通过 [cloverReveal] 拥有自包含的作用域判断、边缘辉光与按压水波纹；
+ * - 按压松开后，按压光效立即消失，水波纹扩散后自然消退；
+ * - 没有任何跨元素的背景聚光灯被直接绘制出来。
  */
 object CloverRevealDefaults {
     val shape: Shape = RoundedCornerShape(8.dp)
 
-    /** 触发边缘辉光的距离 */
-    val revealDistance: Dp = 48.dp
+    /** 非按压时，以指针为中心的圆形作用域半径 */
+    val hoverRadius: Dp = 24.dp
 
-    /** 辉光边框宽度 */
-    val borderWidth: Dp = 1.5.dp
+    /** 按压时，以指针为中心的圆形作用域半径 */
+    val pressedRadius: Dp = 36.dp
 
-    /** 辉光向外扩散宽度 */
-    val glowWidth: Dp = 12.dp
+    /** 按压水波纹扩散半径系数（相对项最大边） */
+    val releasedRippleRadiusFactor: Float = 1.8f
 
-    /** 按压水波纹扩散半径系数 */
-    val releasedRippleRadiusFactor: Float = 2.4f
+    /** 按压水波纹动画时长（毫秒） */
+    const val rippleAnimationDurationMs: Int = 900
+
+    /** 内边框高亮宽度 */
+    val borderWidth: Dp = 0.2.dp
+
+    /** 边缘辉光向外扩散宽度 */
+    val glowWidth: Dp = 4.dp
+
+    /** hover 时边缘辉光最大 alpha，保持极弱以免松手后残留感 */
+    const val hoverGlowAlpha: Float = 0.18f
+
+    /** 按压时边缘辉光最大 alpha */
+    const val pressedGlowAlpha: Float = 1f
+
+    /** 按压但指针滑出元素时的辉光最大 alpha */
+    const val pressedOutsideGlowAlpha: Float = 0.35f
 
     val contentPadding: PaddingValues = PaddingValues(horizontal = 16.dp, vertical = 10.dp)
 
@@ -86,18 +99,15 @@ object CloverRevealDefaults {
     fun backgroundColor(): Color = LocalCloverColorScheme.current.surface
 
     /**
-     * 当前主题下的 Reveal 颜色。
-     *
-     * 浅色模式使用主题主色的明亮版本作为辉光，避免黑底上不可见；
-     * 深色模式使用白色/浅主色，保证对比度。
+     * 当前主题下的边缘辉光颜色。
+     * 浅色模式使用主色，深色模式使用白色，均保持较高透明度以避免脏感。
      */
     @Composable
     fun glowColor(): Color {
-        val scheme = LocalCloverColorScheme.current
         return if (isCloverDark()) {
-            scheme.primary.copy(alpha = 0.55f)
+            Color.White.copy(alpha = 0.55f)
         } else {
-            scheme.primary.copy(alpha = 0.45f)
+            LocalCloverColorScheme.current.primary.copy(alpha = 0.50f)
         }
     }
 
@@ -106,28 +116,30 @@ object CloverRevealDefaults {
      */
     @Composable
     fun rippleColor(): Color {
-        val scheme = LocalCloverColorScheme.current
         return if (isCloverDark()) {
-            Color.White.copy(alpha = 0.18f)
+            Color.White.copy(alpha = 0.22f)
         } else {
-            scheme.primary.copy(alpha = 0.20f)
+            LocalCloverColorScheme.current.primary.copy(alpha = 0.22f)
         }
     }
 }
 
 /**
  * 共享 Reveal 状态。
- *
- * 只共享指针位置与按压状态，不再绘制跨元素聚光灯。
  */
 @Stable
 class CloverRevealState {
+    /** 指针在 Host 坐标系中的位置；Unspecified 表示未追踪 */
     var pointerPosition: Offset by mutableStateOf(Offset.Unspecified)
         internal set
     var isHover: Boolean by mutableStateOf(false)
         internal set
     var isPressed: Boolean by mutableStateOf(false)
         internal set
+    /** 当前被 Host 追踪的按压起点（Host 坐标系）。用于判断哪一个子项应触发水波纹。 */
+    var pressStartPosition: Offset by mutableStateOf(Offset.Unspecified)
+        internal set
+    /** Host 自身坐标，用于把 pressStartPosition 转换到子项本地坐标。 */
     var hostCoordinates: LayoutCoordinates? by mutableStateOf(null)
         internal set
 }
@@ -141,8 +153,7 @@ val LocalCloverRevealState = staticCompositionLocalOf<CloverRevealState?> { null
 fun rememberCloverRevealState(): CloverRevealState = remember { CloverRevealState() }
 
 /**
- * 计算点 [point] 到矩形 [this] 的最短距离。
- * 点在矩形内部时返回 0；在矩形外返回到边缘的最短距离。
+ * 计算点 [point] 到矩形 [this] 的最短距离。点在矩形内部时返回 0。
  */
 private fun Rect.distanceTo(point: Offset): Float {
     if (contains(point)) return 0f
@@ -162,8 +173,8 @@ private fun Rect.distanceTo(point: Offset): Float {
 /**
  * 共享 Reveal 容器。
  *
- * 仅负责追踪整片区域的指针状态并通过 [LocalCloverRevealState] 下发；
- * 不再绘制跨元素聚光灯，每个子项用 [cloverRevealItem] 自行绘制边缘辉光。
+ * 仅追踪整片区域的指针状态并通过 [LocalCloverRevealState] 下发；
+ * **本身不绘制任何光效图形**。
  */
 @Composable
 fun CloverRevealHost(
@@ -198,15 +209,18 @@ fun CloverRevealHost(
                                 state.isHover = false
                                 state.isPressed = false
                                 state.pointerPosition = Offset.Unspecified
+                                state.pressStartPosition = Offset.Unspecified
                             }
 
                             PointerEventType.Press -> {
                                 state.pointerPosition = change.position
+                                state.pressStartPosition = change.position
                                 state.isPressed = true
                             }
 
                             PointerEventType.Release -> {
                                 state.isPressed = false
+                                state.pressStartPosition = Offset.Unspecified
                             }
                         }
                     }
@@ -220,34 +234,41 @@ fun CloverRevealHost(
 }
 
 /**
- * 给 [CloverRevealHost] 内部子项添加边缘辉光。
+ * 给 [CloverRevealHost] 内部子项添加 Reveal 边缘辉光与按压水波纹。
  *
  * 效果：
- * - 指针靠近元素边缘时，元素边框发出主题色辉光；
- * - 按压时辉光增强；
- * - 辉光严格限制在元素自身边界，不会照到相邻元素；
- * - 按压结束后辉光立即消退。
+ * - 以 Host 指针为中心、一定半径的圆形作用域覆盖到当前项时，项的边缘才发光；
+ * - 未被作用域覆盖的项不显示任何光效；
+ * - 按压时高亮增强，并在当前项内产生 Fluent 风格水波纹（可通过 [rippleEnabled] 关闭）；
+ * - 松手后按压光效立即消失，水波纹扩散后自然消退。
  *
  * @param shape 项的形状
  * @param enabled 是否启用
+ * @param rippleEnabled 是否启用按压水波纹
  */
 fun Modifier.cloverRevealItem(
     shape: Shape = CloverRevealDefaults.shape,
-    enabled: Boolean = true
+    enabled: Boolean = true,
+    rippleEnabled: Boolean = true
 ): Modifier = if (!enabled) {
     this
 } else {
     composed {
         val state = LocalCloverRevealState.current
         if (state == null) {
-            return@composed this.cloverReveal(shape = shape, enabled = true)
+            return@composed this.cloverReveal(shape = shape, enabled = true, rippleEnabled = rippleEnabled)
         }
 
         val density = LocalDensity.current
+        val scope = rememberCoroutineScope()
         val glowColor = CloverRevealDefaults.glowColor()
+        val rippleColor = CloverRevealDefaults.rippleColor()
 
         var itemCoordinates: LayoutCoordinates? by remember { mutableStateOf(null) }
         var size by remember { mutableStateOf(IntSize.Zero) }
+
+        // 子项自己追踪按压状态，避免 Host 的 pointerInput 被子项 clickable 拦截后 isPressed 不释放。
+        var isSelfPressed by remember { mutableStateOf(false) }
 
         val itemOffset by remember {
             androidx.compose.runtime.derivedStateOf {
@@ -268,84 +289,157 @@ fun Modifier.cloverRevealItem(
             }
         }
 
-        val revealDistancePx = with(density) { CloverRevealDefaults.revealDistance.toPx() }
-        val glowWidthPx = with(density) { CloverRevealDefaults.glowWidth.toPx() }
-        val borderWidthPx = with(density) { CloverRevealDefaults.borderWidth.toPx() }
+        val itemSize = Size(size.width.toFloat(), size.height.toFloat())
+        val rect = Rect(Offset.Zero, itemSize)
 
-        val (proximity, isPressed) = remember(pointerLocal, size, state.isPressed, revealDistancePx) {
-            val local = pointerLocal
-            if (local == Offset.Unspecified || size == IntSize.Zero) {
-                0f to false
-            } else {
-                val rect = Rect(Offset.Zero, Size(size.width.toFloat(), size.height.toFloat()))
-                val distance = rect.distanceTo(local)
-                val isInside = rect.contains(local)
-                val isNear = distance < revealDistancePx
-                val proximityValue = when {
-                    isInside -> 1f
-                    isNear -> 1f - (distance / revealDistancePx).coerceIn(0f, 1f)
-                    else -> 0f
-                }
-                proximityValue to state.isPressed
-            }
+        val isPointerInside = pointerLocal != Offset.Unspecified && rect.contains(pointerLocal)
+
+        // 以指针为中心的圆形作用域半径；自身按压时辉光范围略大
+        val radiusPx = with(density) {
+            (if (isSelfPressed) CloverRevealDefaults.pressedRadius else CloverRevealDefaults.hoverRadius).toPx()
         }
 
-        val animatedGlowAlpha by animateFloatAsState(
-            targetValue = if (isPressed) 1f else proximity * 0.75f,
-            animationSpec = tween(160),
+        // 辉光强度：指针在元素内时全亮；在元素外时按距离衰减
+        val pointerDistance = if (pointerLocal == Offset.Unspecified) Float.MAX_VALUE
+        else rect.distanceTo(pointerLocal)
+        val illumination = when {
+            pointerLocal == Offset.Unspecified -> 0f
+            isPointerInside -> 1f
+            pointerDistance < radiusPx -> 1f - (pointerDistance / radiusPx).coerceIn(0f, 1f)
+            else -> 0f
+        }
+
+        val targetGlowAlpha = when {
+            isSelfPressed && isPointerInside -> CloverRevealDefaults.pressedGlowAlpha
+            isSelfPressed -> illumination * CloverRevealDefaults.pressedOutsideGlowAlpha
+            isPointerInside -> illumination * CloverRevealDefaults.hoverGlowAlpha
+            else -> 0f
+        }
+        val glowAlpha by animateFloatAsState(
+            targetValue = targetGlowAlpha,
+            animationSpec = tween(120),
             label = "revealItemGlowAlpha"
         )
+
+        // 按压水波纹
+        val rippleRadius = remember { Animatable(0f) }
+        val rippleAlpha = remember { Animatable(0f) }
+        val rippleCenter = remember { mutableStateOf(Offset.Zero) }
+
+        fun startRipple(position: Offset) {
+            if (!rippleEnabled) return
+            val maxSize = maxOf(size.width, size.height).toFloat()
+            val target = maxSize * CloverRevealDefaults.releasedRippleRadiusFactor
+            rippleCenter.value = position
+            val duration = CloverRevealDefaults.rippleAnimationDurationMs
+            scope.launch {
+                rippleRadius.snapTo(0f)
+                rippleAlpha.snapTo(0.8f)
+                launch { rippleRadius.animateTo(target, tween(duration)) }
+                launch { rippleAlpha.animateTo(0f, tween(duration)) }
+            }
+        }
 
         this
             .onGloballyPositioned { itemCoordinates = it }
             .onSizeChanged { size = it }
+            .pointerInput(Unit) {
+                awaitPointerEventScope {
+                    while (true) {
+                        val event = awaitPointerEvent()
+                        val change = event.changes.firstOrNull() ?: continue
+                        val inside = change.position.x in 0f..itemSize.width &&
+                                change.position.y in 0f..itemSize.height
+                        when (event.type) {
+                            PointerEventType.Press -> {
+                                if (inside) isSelfPressed = true
+                            }
+                            PointerEventType.Release -> {
+                                if (isSelfPressed && inside) {
+                                    startRipple(change.position)
+                                }
+                                isSelfPressed = false
+                            }
+                            PointerEventType.Exit -> {
+                                isSelfPressed = false
+                            }
+                        }
+                    }
+                }
+            }
             .clip(shape)
             .drawWithContent {
-                if (animatedGlowAlpha <= 0.001f || size == IntSize.Zero) {
-                    drawContent()
-                    return@drawWithContent
-                }
-
-                val itemSize = Size(size.width.toFloat(), size.height.toFloat())
-                val outline = shape.createOutline(itemSize, layoutDirection, this)
-
-                // 外发光：在边框外侧绘制一层渐变辉光
-                if (glowWidthPx > 0) {
-                    drawOutline(
-                        outline = outline,
-                        color = glowColor.copy(alpha = animatedGlowAlpha * 0.45f),
-                        style = Stroke(width = borderWidthPx + glowWidthPx * 2),
-                    )
-                    drawOutline(
-                        outline = outline,
-                        color = glowColor.copy(alpha = animatedGlowAlpha * 0.75f),
-                        style = Stroke(width = borderWidthPx + glowWidthPx),
-                    )
-                }
-
-                // 内边框高亮
-                drawOutline(
-                    outline = outline,
-                    color = glowColor.copy(alpha = animatedGlowAlpha),
-                    style = Stroke(width = borderWidthPx),
-                )
+                val borderWidthPx = with(density) { CloverRevealDefaults.borderWidth.toPx() }
+                val glowWidthPx = with(density) { CloverRevealDefaults.glowWidth.toPx() }
 
                 drawContent()
+
+                // 边缘辉光：使用以指针为中心的径向渐变作为边框 brush，
+                // 只有指针附近的边缘才会出现光效。
+                if (glowAlpha > 0.001f && pointerLocal != Offset.Unspecified && radiusPx > 0) {
+                    val outline = shape.createOutline(itemSize, layoutDirection, this)
+                    val baseColor = glowColor
+
+                    // 外层柔和光晕
+                    if (glowWidthPx > 0) {
+                        val outerGradient = Brush.radialGradient(
+                            colors = listOf(
+                                baseColor.copy(alpha = glowAlpha * 0.5f),
+                                baseColor.copy(alpha = 0f)
+                            ),
+                            center = pointerLocal,
+                            radius = radiusPx
+                        )
+                        drawOutline(
+                            outline = outline,
+                            brush = outerGradient,
+                            style = Stroke(width = borderWidthPx + glowWidthPx)
+                        )
+                    }
+
+                    // 内层核心高亮
+                    val innerGradient = Brush.radialGradient(
+                        colors = listOf(
+                            baseColor.copy(alpha = glowAlpha),
+                            baseColor.copy(alpha = 0f)
+                        ),
+                        center = pointerLocal,
+                        radius = radiusPx * 0.55f
+                    )
+                    drawOutline(
+                        outline = outline,
+                        brush = innerGradient,
+                        style = Stroke(width = borderWidthPx)
+                    )
+                }
+
+                // 按压水波纹
+                if (rippleEnabled && rippleAlpha.value > 0.001f && rippleRadius.value > 0) {
+                    drawCircle(
+                        color = rippleColor,
+                        radius = rippleRadius.value,
+                        center = rippleCenter.value,
+                        alpha = rippleAlpha.value
+                    )
+                }
             }
     }
 }
 
 /**
- * 给单个组件添加独立的 Reveal 边缘辉光 + 按压水波纹。
+ * 给单个组件添加独立的 Reveal 边缘辉光与按压水波纹。
  *
  * 适用于不在 [CloverRevealHost] 内部的按钮/卡片。
+ * 自身追踪指针，以组件内指针为中心形成圆形作用域，覆盖自身时显示边缘辉光。
  *
  * @param shape 裁剪形状
  * @param enabled 是否启用
+ * @param rippleEnabled 是否启用按压水波纹
  */
 fun Modifier.cloverReveal(
     shape: Shape = CloverRevealDefaults.shape,
-    enabled: Boolean = true
+    enabled: Boolean = true,
+    rippleEnabled: Boolean = true
 ): Modifier = if (!enabled) {
     this
 } else {
@@ -358,32 +452,32 @@ fun Modifier.cloverReveal(
         var pointerPosition by remember { mutableStateOf(Offset.Unspecified) }
         var isHover by remember { mutableStateOf(false) }
         var isPressed by remember { mutableStateOf(false) }
-        var isReleased by remember { mutableStateOf(false) }
         var size by remember { mutableStateOf(IntSize.Zero) }
-
-        val revealDistancePx = with(density) { CloverRevealDefaults.revealDistance.toPx() }
-        val glowWidthPx = with(density) { CloverRevealDefaults.glowWidth.toPx() }
-        val borderWidthPx = with(density) { CloverRevealDefaults.borderWidth.toPx() }
 
         val itemSize = Size(size.width.toFloat(), size.height.toFloat())
         val rect = Rect(Offset.Zero, itemSize)
         val isPointerInside = pointerPosition != Offset.Unspecified && rect.contains(pointerPosition)
+
+        // 以自身内指针为中心的圆形作用域是否覆盖自身
+        val radiusPx = with(density) {
+            (if (isPressed) CloverRevealDefaults.pressedRadius else CloverRevealDefaults.hoverRadius).toPx()
+        }
         val pointerDistance = if (pointerPosition == Offset.Unspecified) Float.MAX_VALUE
         else rect.distanceTo(pointerPosition)
-        val isPointerNear = isPointerInside || pointerDistance < revealDistancePx
-        val proximity = if (isPointerInside) 1f
-        else if (isPointerNear) 1f - (pointerDistance / revealDistancePx).coerceIn(0f, 1f)
+        val isIlluminated = isPointerInside || pointerDistance < radiusPx
+        val illumination = if (isPointerInside) 1f
+        else if (isIlluminated) 1f - (pointerDistance / radiusPx).coerceIn(0f, 1f)
         else 0f
 
         val targetGlowAlpha = when {
-            isPressed && isPointerInside -> 1f
-            isPressed -> proximity * 0.6f
-            isPointerNear -> proximity * 0.75f
+            isPressed && isPointerInside -> CloverRevealDefaults.pressedGlowAlpha
+            isPressed -> illumination * CloverRevealDefaults.pressedOutsideGlowAlpha
+            isIlluminated -> illumination * CloverRevealDefaults.hoverGlowAlpha
             else -> 0f
         }
         val glowAlpha by animateFloatAsState(
             targetValue = targetGlowAlpha,
-            animationSpec = tween(160),
+            animationSpec = tween(80),
             label = "revealGlowAlpha"
         )
 
@@ -391,21 +485,18 @@ fun Modifier.cloverReveal(
         val rippleAlpha = remember { Animatable(0f) }
         val rippleCenter = remember { mutableStateOf(Offset.Zero) }
 
-        fun startReleaseRipple(position: Offset) {
+        fun startRipple(position: Offset) {
+            if (!rippleEnabled) return
             val maxSize = maxOf(size.width, size.height).toFloat()
             val target = maxSize * CloverRevealDefaults.releasedRippleRadiusFactor
             rippleCenter.value = position
+            val duration = CloverRevealDefaults.rippleAnimationDurationMs
             scope.launch {
                 rippleRadius.snapTo(0f)
                 rippleAlpha.snapTo(0.75f)
-                launch { rippleRadius.animateTo(target, tween(380)) }
-                launch { rippleAlpha.animateTo(0f, tween(380)) }
+                launch { rippleRadius.animateTo(target, tween(duration)) }
+                launch { rippleAlpha.animateTo(0f, tween(duration)) }
             }
-        }
-
-        fun resetPressState() {
-            isPressed = false
-            isReleased = true
         }
 
         this
@@ -431,13 +522,12 @@ fun Modifier.cloverReveal(
 
                             PointerEventType.Exit -> {
                                 isHover = false
-                                resetPressState()
+                                isPressed = false
                             }
 
                             PointerEventType.Press -> {
                                 pointerPosition = change.position
                                 isPressed = true
-                                isReleased = false
                                 scope.launch {
                                     rippleRadius.snapTo(0f)
                                     rippleAlpha.snapTo(0f)
@@ -447,9 +537,9 @@ fun Modifier.cloverReveal(
                             PointerEventType.Release -> {
                                 val releasePosition = pointerPosition
                                 if (releasePosition != Offset.Unspecified) {
-                                    startReleaseRipple(releasePosition)
+                                    startRipple(releasePosition)
                                 }
-                                resetPressState()
+                                isPressed = false
                                 isHover = inside
                             }
                         }
@@ -458,38 +548,48 @@ fun Modifier.cloverReveal(
             }
             .clip(shape)
             .drawWithContent {
-                if (size == IntSize.Zero) {
-                    drawContent()
-                    return@drawWithContent
-                }
+                drawContent()
 
-                val outline = shape.createOutline(itemSize, layoutDirection, this)
+                // 边缘辉光：径向渐变 brush 作为边框，只有指针附近才亮
+                if (glowAlpha > 0.001f && pointerPosition != Offset.Unspecified) {
+                    val outline = shape.createOutline(itemSize, layoutDirection, this)
+                    val borderWidthPx = CloverRevealDefaults.borderWidth.toPx()
+                    val glowWidthPx = CloverRevealDefaults.glowWidth.toPx()
+                    val baseColor = glowColor
 
-                // 外发光
-                if (glowAlpha > 0.001f) {
                     if (glowWidthPx > 0) {
-                        drawOutline(
-                            outline = outline,
-                            color = glowColor.copy(alpha = glowAlpha * 0.45f),
-                            style = Stroke(width = borderWidthPx + glowWidthPx * 2),
+                        val outerGradient = Brush.radialGradient(
+                            colors = listOf(
+                                baseColor.copy(alpha = glowAlpha * 0.5f),
+                                baseColor.copy(alpha = 0f)
+                            ),
+                            center = pointerPosition,
+                            radius = radiusPx
                         )
                         drawOutline(
                             outline = outline,
-                            color = glowColor.copy(alpha = glowAlpha * 0.75f),
-                            style = Stroke(width = borderWidthPx + glowWidthPx),
+                            brush = outerGradient,
+                            style = Stroke(width = borderWidthPx + glowWidthPx)
                         )
                     }
+
+                    val innerGradient = Brush.radialGradient(
+                        colors = listOf(
+                            baseColor.copy(alpha = glowAlpha),
+                            baseColor.copy(alpha = 0f)
+                        ),
+                        center = pointerPosition,
+                        radius = radiusPx * 0.55f
+                    )
                     drawOutline(
                         outline = outline,
-                        color = glowColor.copy(alpha = glowAlpha),
-                        style = Stroke(width = borderWidthPx),
+                        brush = innerGradient,
+                        style = Stroke(width = borderWidthPx)
                     )
                 }
 
-                drawContent()
-
-                // 按压水波纹：在内容之上绘制
-                if (rippleAlpha.value > 0.001f && rippleRadius.value > 0) {
+                // 按压水波纹
+                if (rippleEnabled && rippleAlpha.value > 0.001f && rippleRadius.value > 0) {
                     drawCircle(
                         color = rippleColor,
                         radius = rippleRadius.value,
@@ -502,7 +602,7 @@ fun Modifier.cloverReveal(
 }
 
 /**
- * 带 Reveal 边缘辉光的按钮/卡片表面。
+ * 带 Reveal 边缘辉光与按压水波纹的按钮/卡片表面。
  */
 @Composable
 fun CloverRevealSurface(

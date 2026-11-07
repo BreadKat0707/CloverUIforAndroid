@@ -49,7 +49,6 @@ fun CloverHorizontalListItem(
     coverSize: Dp = 140.dp,
     shape: RoundedCornerShape = RoundedCornerShape(CloverSizes.coverCornerRadius)
 ) {
-    val isDark = isCloverDark()
     val titleColor = LocalCloverColorScheme.current.onSurface
     val subtitleColor = LocalCloverColorScheme.current.onSurfaceVariant
 
@@ -66,10 +65,12 @@ fun CloverHorizontalListItem(
         horizontalAlignment = Alignment.Start
     ) {
         // 封面区域
-        BoxPlaceholder(
+        androidx.compose.foundation.layout.Box(
             modifier = Modifier
                 .size(coverSize)
                 .clip(shape)
+                .background(Color.Transparent),
+            contentAlignment = Alignment.Center
         ) {
             cover()
         }
@@ -95,22 +96,5 @@ fun CloverHorizontalListItem(
                 overflow = TextOverflow.Ellipsis
             )
         }
-    }
-}
-
-/**
- * 仅用于占位的内部 Box，不影响外部测量，只在 content 为空时保持尺寸。
- * 这里直接作为 cover 容器使用。
- */
-@Composable
-private fun BoxPlaceholder(
-    modifier: Modifier = Modifier,
-    content: @Composable () -> Unit
-) {
-    androidx.compose.foundation.layout.Box(
-        modifier = modifier,
-        contentAlignment = Alignment.Center
-    ) {
-        content()
     }
 }

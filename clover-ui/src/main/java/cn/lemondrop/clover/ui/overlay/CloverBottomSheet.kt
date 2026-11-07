@@ -41,8 +41,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
@@ -50,9 +50,11 @@ import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.Velocity
 import androidx.compose.ui.unit.dp
 import cn.lemondrop.clover.material.CloverMaterial
-import cn.lemondrop.clover.material.cloverAcrylic
+import cn.lemondrop.clover.material.cloverSolid
+import androidx.compose.ui.window.Dialog
+import androidx.compose.ui.window.DialogProperties
 import dev.chrisbanes.haze.HazeState
-import dev.chrisbanes.haze.HazeTint
+import dev.chrisbanes.haze.blur.HazeColorEffect
 import io.github.composefluent.component.Text
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
@@ -79,7 +81,68 @@ fun CloverBottomSheet(
     modifier: Modifier = Modifier,
     title: String? = null,
     hazeState: HazeState? = null,
-    hazeTints: List<HazeTint> = emptyList(),
+    hazeTints: List<HazeColorEffect> = emptyList(),
+    content: @Composable ColumnScope.() -> Unit
+) {
+    CloverBottomSheetPanel(
+        onDismiss = onDismiss,
+        modifier = modifier,
+        title = title,
+        hazeState = hazeState,
+        content = content
+    )
+}
+
+/**
+ * Clover Design 窗口级底部 Sheet（系统独立窗口）
+ *
+ * 使用系统 [Dialog] 窗口显示，不依赖调用方 root 容器大小，可自然覆盖全屏。
+ * 相比 [Popup]，[Dialog] 在关闭后能正确归还焦点并保持 edge-to-edge 沉浸。
+ * 视觉与拖拽行为与同层 [CloverBottomSheet] 保持一致。
+ *
+ * 注意：窗口级 Dialog 无法与祖先 [HazeState] 共享模糊源，因此 [hazeState] 参数
+ * 在此无效，背景始终使用纯色。
+ *
+ * @param onDismiss Sheet 完全收起后触发
+ * @param modifier 外部 modifier
+ * @param title 可选标题
+ * @param content Sheet 内容
+ */
+@Composable
+fun CloverWindowBottomSheet(
+    onDismiss: () -> Unit,
+    modifier: Modifier = Modifier,
+    title: String? = null,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    Dialog(
+        onDismissRequest = onDismiss,
+        properties = DialogProperties(
+            usePlatformDefaultWidth = false,
+            decorFitsSystemWindows = false,
+            dismissOnBackPress = true,
+            dismissOnClickOutside = true
+        )
+    ) {
+        CloverBottomSheetPanel(
+            onDismiss = onDismiss,
+            modifier = modifier,
+            title = title,
+            hazeState = null,
+            content = content
+        )
+    }
+}
+
+/**
+ * Clover Design 底部 Sheet 面板内容（同层与窗口级共用）
+ */
+@Composable
+private fun CloverBottomSheetPanel(
+    onDismiss: () -> Unit,
+    modifier: Modifier,
+    title: String?,
+    hazeState: HazeState?,
     content: @Composable ColumnScope.() -> Unit
 ) {
     val isDark = isCloverDark()
@@ -91,7 +154,20 @@ fun CloverBottomSheet(
     val scope = rememberCoroutineScope()
 
     BoxWithConstraints(
-        modifier = modifier.fillMaxSize()
+        modifier = modifier
+            .fillMaxSize()
+            // 兜底消费 Dialog 窗口中未被内部子节点消费的 pointer 事件，
+            // 避免滑动/点击穿透到 Dialog 后面的 Activity 内容。
+            .pointerInput(Unit) {
+                awaitPointerEventScope {
+                    while (true) {
+                        val event = awaitPointerEvent(PointerEventPass.Final)
+                        event.changes.forEach { change ->
+                            if (!change.isConsumed) change.consume()
+                        }
+                    }
+                }
+            }
     ) {
         // 面板最大高度：屏幕高度 - 状态栏 - 导航栏
         val maxPanelHeight = maxHeight - statusBarPadding - navBarPadding
@@ -108,15 +184,20 @@ fun CloverBottomSheet(
                 1f - (dragOffset.value / screenHeightPx).coerceIn(0f, 1f)
             }
         }
-        val scrimAlpha by remember(isDark, progress) {
-            derivedStateOf { if (isDark) 0.5f * progress else 0.4f * progress }
+        val scrimAlpha by remember(progress) {
+            derivedStateOf { (if (isDark) 0.4f else 0.32f) * progress }
         }
 
         val dismissSheet = {
             scope.launch {
-                dragOffset.animateTo(screenHeightPx, animationSpec = tween(250))
+                dragOffset.animateTo(screenHeightPx, animationSpec = tween(180))
                 onDismiss()
             }
+        }
+
+        // 用于内容区同步更新 dragOffset 的边界函数
+        val clampedDragOffset: (Float) -> Float = { value ->
+            value.coerceIn(0f, screenHeightPx)
         }
 
         // 系统返回：预测返回手势驱动 sheet 下滑收起
@@ -126,9 +207,10 @@ fun CloverBottomSheet(
                     val p = event.progress.coerceIn(0f, 1f)
                     dragOffset.snapTo(p * screenHeightPx)
                 }
-                dismissSheet()
+                // 手势完成时 sheet 已拖到最底部，直接关闭窗口
+                onDismiss()
             } catch (_: CancellationException) {
-                scope.launch { dragOffset.animateTo(0f, animationSpec = tween(200)) }
+                scope.launch { dragOffset.animateTo(0f, animationSpec = tween(160)) }
             }
         }
 
@@ -166,13 +248,8 @@ fun CloverBottomSheet(
 
             val panelModifier = if (hazeState != null) {
                 basePanelModifier
-                    .background(bgColor) // 先画一层保底背景，防止 Haze 在某些尺寸/GPU 上失效时透明
-                    .cloverAcrylic(
-                        state = hazeState,
-                        backgroundColor = Color.Transparent,
-                        tints = hazeTints.ifEmpty {
-                            CloverMaterial.Acrylic.tints(baseColor = bgColor)
-                        }
+                    .cloverSolid(
+                        backgroundColor = CloverMaterial.Solid.backgroundColor()
                     )
             } else {
                 basePanelModifier.background(bgColor)
@@ -180,14 +257,18 @@ fun CloverBottomSheet(
 
             Column(
                 modifier = panelModifier
-                    .clickable(enabled = false) { /* 阻止点击穿透 */ }
+                    .clickable(
+                        interactionSource = null,
+                        indication = null,
+                        onClick = {}
+                    )
             ) {
                 DragHandle(
                     dragOffset = dragOffset,
                     title = title,
                     onDrag = { deltaPx ->
                         scope.launch {
-                            dragOffset.snapTo((dragOffset.value + deltaPx).coerceAtLeast(0f))
+                            dragOffset.snapTo(clampedDragOffset(dragOffset.value + deltaPx))
                         }
                     },
                     onDragEnd = {
@@ -207,10 +288,9 @@ fun CloverBottomSheet(
                             available: Offset,
                             source: NestedScrollSource
                         ): Offset {
-                            // 如果 sheet 已经被下拉，优先把滑动用来移动 sheet
+                            // sheet 已被下拉时，优先把滑动用来移动 sheet（同步更新，避免延迟）
                             if (dragOffset.value > 0f && available.y != 0f) {
-                                val newOffset = (dragOffset.value + available.y)
-                                    .coerceAtLeast(0f)
+                                val newOffset = clampedDragOffset(dragOffset.value + available.y)
                                 val consumed = newOffset - dragOffset.value
                                 scope.launch { dragOffset.snapTo(newOffset) }
                                 return Offset(0f, consumed)
@@ -225,9 +305,11 @@ fun CloverBottomSheet(
                         ): Offset {
                             // 子列表滚动到顶后继续向下滑，把剩余滑动交给 sheet 下拉
                             if (available.y > 0f) {
-                                val newOffset = (dragOffset.value + available.y)
-                                    .coerceAtLeast(0f)
+                                val newOffset = clampedDragOffset(dragOffset.value + available.y)
                                 scope.launch { dragOffset.snapTo(newOffset) }
+                                if (newOffset >= screenHeightPx) {
+                                    onDismiss()
+                                }
                                 return Offset(0f, available.y)
                             }
                             return Offset.Zero
@@ -363,7 +445,8 @@ fun CloverMenuItem(
     modifier: Modifier = Modifier,
     icon: ImageVector? = null,
     isSelected: Boolean = false,
-    isDestructive: Boolean = false
+    isDestructive: Boolean = false,
+    enabled: Boolean = true
 ) {
     val isDark = isCloverDark()
     val normalTitleColor = LocalCloverColorScheme.current.onSurface
@@ -379,18 +462,10 @@ fun CloverMenuItem(
     }
 
     val indicator: @Composable (() -> Unit) = {
-        if (isSelected) {
-            Box(
-                modifier = Modifier
-                    .width(3.dp)
-                    .height(24.dp)
-                    .clip(RoundedCornerShape(1.5.dp))
-                    .background(LocalCloverColorScheme.current.primary)
-            )
-        } else {
-            // 占位，保持选中/未选中项的图标对齐
-            Spacer(modifier = Modifier.width(3.dp))
-        }
+        CloverSelectionIndicator(
+            selected = isSelected,
+            orientation = CloverIndicatorOrientation.Vertical
+        )
     }
 
     CloverBasicItem(
@@ -408,6 +483,7 @@ fun CloverMenuItem(
                 )
             }
         },
+        enabled = enabled,
         contentPadding = androidx.compose.foundation.layout.PaddingValues(
             horizontal = CloverSizes.listItemHorizontalPadding,
             vertical = CloverSpacing.md

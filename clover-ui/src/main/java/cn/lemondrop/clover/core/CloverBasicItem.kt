@@ -23,7 +23,6 @@ import io.github.composefluent.component.Text
 /**
  * Clover Design 通用列表/设置项基座
  *
- * 对标 Miuix 的 BasicComponent：统一标题、副标题、前后操作区的样式与交互。
  * [CloverListItem]、[CloverMenuItem]、[CloverSettingItem] 等都基于此组件封装。
  *
  * @param title 主标题文字
@@ -131,7 +130,7 @@ data class CloverBasicItemColors(
  * [CloverBasicItem] 的默认值与颜色工厂
  */
 object CloverBasicItemDefaults {
-    private const val DisabledAlpha = 0.38f
+    internal const val DisabledAlpha = 0.38f
 
     @Composable
     fun colors(

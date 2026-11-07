@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.material3.ripple
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -12,10 +13,7 @@ import androidx.compose.foundation.layout.defaultMinSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Icon
-import androidx.compose.material3.LocalContentColor
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -23,7 +21,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.luminance
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
@@ -49,6 +46,29 @@ data class CloverButtonColors(
 )
 
 /**
+ * 根据背景色自动选择黑/白内容色，保证可读性。
+ */
+internal fun Color.contentColorFor(): Color {
+    return if (this.luminance() > 0.5f) Color.Black else Color.White
+}
+
+/**
+ * 返回深色/浅色模式下统一的内容色：深色固定白色，浅色根据容器色自动选择。
+ */
+@Composable
+internal fun containerContentColor(containerColor: Color): Color {
+    return if (isCloverDark()) Color.White else containerColor.contentColorFor()
+}
+
+/**
+ * 返回强调内容色：统一使用主题主色，在深/浅色模式下均有足够辨识度。
+ */
+@Composable
+internal fun accentContentColor(): Color {
+    return LocalCloverColorScheme.current.primary
+}
+
+/**
  * Clover Design 按钮默认参数
  */
 object CloverButtonDefaults {
@@ -71,15 +91,9 @@ object CloverButtonDefaults {
     @Composable
     fun filledColors(
         containerColor: Color = LocalCloverColorScheme.current.primary,
-        contentColor: Color = LocalCloverColorScheme.current.onPrimary,
-        disabledContainerColor: Color = if (isCloverDark())
-            LocalCloverColorScheme.current.surfaceVariant.copy(alpha = 0.5f)
-        else
-            LocalCloverColorScheme.current.surfaceVariant.copy(alpha = 0.5f),
-        disabledContentColor: Color = if (isCloverDark())
-            LocalCloverColorScheme.current.onSurfaceVariant.copy(alpha = 0.4f)
-        else
-            LocalCloverColorScheme.current.onSurfaceVariant.copy(alpha = 0.4f)
+        contentColor: Color = containerContentColor(containerColor),
+        disabledContainerColor: Color = LocalCloverColorScheme.current.onSurface.copy(alpha = 0.12f),
+        disabledContentColor: Color = LocalCloverColorScheme.current.onSurface.copy(alpha = 0.38f)
     ): CloverButtonColors = CloverButtonColors(
         containerColor = containerColor,
         contentColor = contentColor,
@@ -92,16 +106,10 @@ object CloverButtonDefaults {
      */
     @Composable
     fun outlinedColors(
-        contentColor: Color = LocalCloverColorScheme.current.primary,
+        contentColor: Color = accentContentColor(),
         borderColor: Color = LocalCloverColorScheme.current.primary.copy(alpha = 0.55f),
-        disabledContentColor: Color = if (isCloverDark())
-            LocalCloverColorScheme.current.onSurfaceVariant.copy(alpha = 0.4f)
-        else
-            LocalCloverColorScheme.current.onSurfaceVariant.copy(alpha = 0.4f),
-        disabledBorderColor: Color = if (isCloverDark())
-            LocalCloverColorScheme.current.onSurfaceVariant.copy(alpha = 0.2f)
-        else
-            LocalCloverColorScheme.current.onSurfaceVariant.copy(alpha = 0.2f)
+        disabledContentColor: Color = LocalCloverColorScheme.current.onSurface.copy(alpha = 0.38f),
+        disabledBorderColor: Color = LocalCloverColorScheme.current.onSurface.copy(alpha = 0.12f)
     ): CloverButtonColors = CloverButtonColors(
         containerColor = Color.Transparent,
         contentColor = contentColor,
@@ -116,11 +124,8 @@ object CloverButtonDefaults {
      */
     @Composable
     fun textColors(
-        contentColor: Color = LocalCloverColorScheme.current.primary,
-        disabledContentColor: Color = if (isCloverDark())
-            LocalCloverColorScheme.current.onSurfaceVariant.copy(alpha = 0.4f)
-        else
-            LocalCloverColorScheme.current.onSurfaceVariant.copy(alpha = 0.4f)
+        contentColor: Color = accentContentColor(),
+        disabledContentColor: Color = LocalCloverColorScheme.current.onSurface.copy(alpha = 0.38f)
     ): CloverButtonColors = CloverButtonColors(
         containerColor = Color.Transparent,
         contentColor = contentColor,
@@ -206,23 +211,21 @@ fun CloverButton(
         .clickable(
             enabled = enabled,
             interactionSource = interactionSource,
-            indication = null,
+            indication = if (reveal && enabled) null else ripple(),
             onClick = onClick
         )
         .defaultMinSize(minHeight = height)
         .padding(padding)
 
-    CompositionLocalProvider(LocalContentColor provides contentColor) {
-        Row(
-            modifier = baseModifier,
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(
-                space = CloverButtonDefaults.iconSpacing,
-                alignment = Alignment.CenterHorizontally
-            ),
-            content = content
-        )
-    }
+    Row(
+        modifier = baseModifier,
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(
+            space = CloverButtonDefaults.iconSpacing,
+            alignment = Alignment.CenterHorizontally
+        ),
+        content = content
+    )
 }
 
 /**
@@ -242,6 +245,7 @@ fun CloverButton(
     reveal: Boolean = true
 ) {
     val (_, _, textStyle) = sizeParams(size)
+    val contentColor = if (enabled) colors.contentColor else colors.disabledContentColor
     CloverButton(
         onClick = onClick,
         modifier = modifier,
@@ -251,7 +255,7 @@ fun CloverButton(
         shape = shape,
         reveal = reveal
     ) {
-        Text(text = text, style = textStyle)
+        Text(text = text, style = textStyle, color = contentColor)
     }
 }
 
@@ -268,17 +272,19 @@ fun CloverOutlinedButton(
     shape: Shape = CloverButtonDefaults.shape,
     reveal: Boolean = true
 ) {
+    val colors = CloverButtonDefaults.outlinedColors()
+    val contentColor = if (enabled) colors.contentColor else colors.disabledContentColor
     CloverButton(
         onClick = onClick,
         modifier = modifier,
         enabled = enabled,
         size = size,
-        colors = CloverButtonDefaults.outlinedColors(),
+        colors = colors,
         shape = shape,
         reveal = reveal
     ) {
         val (_, _, textStyle) = sizeParams(size)
-        Text(text = text, style = textStyle)
+        Text(text = text, style = textStyle, color = contentColor)
     }
 }
 
@@ -295,53 +301,18 @@ fun CloverTextButton(
     shape: Shape = CloverButtonDefaults.shape,
     reveal: Boolean = true
 ) {
+    val colors = CloverButtonDefaults.textColors()
+    val contentColor = if (enabled) colors.contentColor else colors.disabledContentColor
     CloverButton(
         onClick = onClick,
         modifier = modifier,
         enabled = enabled,
         size = size,
-        colors = CloverButtonDefaults.textColors(),
+        colors = colors,
         shape = shape,
         reveal = reveal
     ) {
         val (_, _, textStyle) = sizeParams(size)
-        Text(text = text, style = textStyle)
-    }
-}
-
-/**
- * 图标按钮
- *
- * @param icon 图标
- * @param contentDescription 内容描述
- */
-@Composable
-fun CloverIconButton(
-    icon: ImageVector,
-    contentDescription: String?,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier,
-    enabled: Boolean = true,
-    size: CloverButtonSize = CloverButtonSize.Medium,
-    colors: CloverButtonColors = CloverButtonDefaults.filledColors(),
-    shape: Shape = RoundedCornerShape(12.dp),
-    reveal: Boolean = true
-) {
-    val (height, _, _) = sizeParams(size)
-    CloverButton(
-        onClick = onClick,
-        modifier = modifier.defaultMinSize(minWidth = height, minHeight = height),
-        enabled = enabled,
-        size = size,
-        colors = colors,
-        shape = shape,
-        reveal = reveal,
-        contentPadding = PaddingValues(0.dp)
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = contentDescription,
-            modifier = Modifier.size(CloverButtonDefaults.iconSize)
-        )
+        Text(text = text, style = textStyle, color = contentColor)
     }
 }

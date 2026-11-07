@@ -5,7 +5,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.BlendMode
 import androidx.compose.ui.graphics.Color
 import dev.chrisbanes.haze.HazeState
-import dev.chrisbanes.haze.HazeTint
+import dev.chrisbanes.haze.blur.HazeColorEffect
 
 /**
  * Clover Design Haze 效果封装
@@ -33,12 +33,12 @@ object CloverHazeDefaults {
         baseColor: Color,
         useLuminosity: Boolean = true,
         useExclusion: Boolean = true
-    ): List<HazeTint> {
+    ): List<HazeColorEffect> {
         return buildList {
-            add(HazeTint(color = baseColor))
+            add(HazeColorEffect.tint(color = baseColor))
             if (useLuminosity) {
                 add(
-                    HazeTint(
+                    HazeColorEffect.tint(
                         color = Color.White.copy(alpha = 0.05f),
                         blendMode = BlendMode.Luminosity
                     )
@@ -46,7 +46,7 @@ object CloverHazeDefaults {
             }
             if (useExclusion) {
                 add(
-                    HazeTint(
+                    HazeColorEffect.tint(
                         color = Color.White.copy(alpha = 0.04f),
                         blendMode = BlendMode.Exclusion
                     )

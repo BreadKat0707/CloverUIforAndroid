@@ -46,7 +46,19 @@ object CloverTypography {
         letterSpacing = 0.1.sp
     )
 
+    val headlineMedium = TextStyle(
+        fontSize = 28.sp,
+        fontWeight = FontWeight.SemiBold,
+        letterSpacing = 0.sp
+    )
+
     val titleBar = TextStyle(
+        fontSize = 20.sp,
+        fontWeight = FontWeight.SemiBold,
+        letterSpacing = 0.sp
+    )
+
+    val topAppBarCollapsed = TextStyle(
         fontSize = 20.sp,
         fontWeight = FontWeight.SemiBold,
         letterSpacing = 0.sp

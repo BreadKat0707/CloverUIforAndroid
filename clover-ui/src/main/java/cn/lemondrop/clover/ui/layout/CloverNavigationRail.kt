@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
@@ -15,6 +16,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -51,10 +53,20 @@ fun CloverNavigationRail(
     val isDark = isCloverDark()
     val bgColor = backgroundColor ?: LocalCloverColorScheme.current.surface
 
+    val consumeTouches = Modifier.pointerInput(Unit) {
+        awaitPointerEventScope {
+            while (true) {
+                val event = awaitPointerEvent()
+                event.changes.forEach { it.consume() }
+            }
+        }
+    }
+
     Column(
         modifier = modifier
             .width(CloverSizes.navigationRailWidth)
             .fillMaxHeight()
+            .then(consumeTouches)
             .background(bgColor)
             .padding(vertical = CloverSpacing.md),
         horizontalAlignment = Alignment.CenterHorizontally
@@ -76,7 +88,7 @@ fun CloverNavigationRail(
                         .copy(alpha = 0.5f)
                 } else Color.Transparent
 
-                Box(
+                Row(
                     modifier = Modifier
                         .background(itemBg)
                         .cloverClickable(
@@ -84,8 +96,13 @@ fun CloverNavigationRail(
                             cornerRadius = 8.dp
                         )
                         .padding(horizontal = CloverSpacing.sm, vertical = 10.dp),
-                    contentAlignment = Alignment.Center
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
+                    CloverSelectionIndicator(
+                        selected = selected,
+                        orientation = CloverIndicatorOrientation.Vertical
+                    )
+                    Spacer(modifier = Modifier.width(CloverSpacing.sm))
                     Column(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.spacedBy(2.dp)

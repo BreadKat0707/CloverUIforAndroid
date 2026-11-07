@@ -12,7 +12,7 @@ version = cloverUiVersion
 android {
     namespace = "cn.lemondrop.clover"
     compileSdk {
-        version = release(36) {
+        version = release(37) {
             minorApiLevel = 1
         }
     }
@@ -41,6 +41,7 @@ android {
     buildFeatures {
         compose = true
     }
+    buildToolsVersion = "37.0.0"
 
     publishing {
         singleVariant("release") {
@@ -68,7 +69,8 @@ dependencies {
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
 
-    implementation(libs.haze)
+    api(libs.haze)
+    api(libs.haze.blur)
     implementation(libs.lucide)
     implementation(libs.fluent)
 

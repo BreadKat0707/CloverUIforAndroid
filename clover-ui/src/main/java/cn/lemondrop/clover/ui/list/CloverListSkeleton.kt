@@ -38,7 +38,6 @@ import androidx.compose.ui.unit.dp
 fun CloverListSkeleton(
     count: Int = 6
 ) {
-    val isDark = isCloverDark()
     val baseColor = LocalCloverColorScheme.current.surfaceVariant
 
     val shimmerColors = listOf(

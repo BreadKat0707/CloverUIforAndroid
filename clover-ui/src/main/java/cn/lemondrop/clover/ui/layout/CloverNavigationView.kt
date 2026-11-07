@@ -2,6 +2,7 @@ package cn.lemondrop.clover.ui.layout
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -18,15 +19,19 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import cn.lemondrop.clover.CloverIndicatorOrientation
 import cn.lemondrop.clover.CloverNavItem
+import cn.lemondrop.clover.CloverSelectionIndicator
 import cn.lemondrop.clover.CloverSizes
 import cn.lemondrop.clover.CloverSpacing
 import cn.lemondrop.clover.CloverTypography
 import cn.lemondrop.clover.LocalCloverColorScheme
 import cn.lemondrop.clover.cloverClickable
+import cn.lemondrop.clover.cloverRevealItem
 import com.composables.icons.lucide.Album
 import com.composables.icons.lucide.FolderOpen
 import com.composables.icons.lucide.Lucide
@@ -35,7 +40,7 @@ import com.composables.icons.lucide.Music
 import io.github.composefluent.component.Text
 
 /**
- * Fluent Design 风格的左侧导航视图（Navigation View）
+ * Fluent Design 风格的左侧导航视图（Navigation View）。
  *
  * 与 [CloverNavigationRail] 相比， NavigationView 更宽，
  * 更适合展示带文字说明的导航项，并可扩展分组、页眉/页脚。
@@ -44,6 +49,8 @@ import io.github.composefluent.component.Text
  * @param selectedIndex 当前选中项索引
  * @param onItemSelected 选中回调
  * @param modifier 外部 modifier
+ * @param expanded 是否展开显示文字；false 时仅显示图标
+ * @param onToggleExpanded 切换展开/收折的回调
  * @param backgroundColor 背景色，null 表示由外层容器提供
  * @param header 顶部额外内容（如 Logo、搜索框）
  * @param footer 底部额外内容
@@ -54,16 +61,29 @@ fun CloverNavigationView(
     selectedIndex: Int,
     onItemSelected: (Int) -> Unit,
     modifier: Modifier = Modifier,
+    expanded: Boolean = true,
+    onToggleExpanded: (() -> Unit)? = null,
     backgroundColor: Color? = null,
     header: @Composable (() -> Unit)? = null,
     footer: @Composable (() -> Unit)? = null
 ) {
     val bgColor = backgroundColor ?: Color.Transparent
+    val itemWidth = if (expanded) CloverSizes.navigationViewWidth else CloverSizes.navigationRailWidth
+
+    val consumeTouches = Modifier.pointerInput(Unit) {
+        awaitPointerEventScope {
+            while (true) {
+                val event = awaitPointerEvent()
+                event.changes.forEach { it.consume() }
+            }
+        }
+    }
 
     Column(
         modifier = modifier
-            .width(CloverSizes.navigationViewWidth)
+            .width(itemWidth)
             .fillMaxHeight()
+            .then(consumeTouches)
             .background(bgColor)
             .padding(horizontal = CloverSpacing.md, vertical = CloverSpacing.lg),
         verticalArrangement = Arrangement.spacedBy(CloverSpacing.xs)
@@ -90,6 +110,7 @@ fun CloverNavigationView(
                         .fillMaxWidth()
                         .height(44.dp)
                         .clip(RoundedCornerShape(8.dp))
+                        .cloverRevealItem(shape = RoundedCornerShape(8.dp))
                         .background(itemBg)
                         .cloverClickable(
                             onClick = { onItemSelected(index) },
@@ -98,25 +119,41 @@ fun CloverNavigationView(
                         .padding(horizontal = CloverSpacing.sm),
                     verticalAlignment = Alignment.CenterVertically
                 ) {
+                    CloverSelectionIndicator(
+                        selected = selected,
+                        orientation = CloverIndicatorOrientation.Vertical
+                    )
+                    Spacer(modifier = Modifier.width(CloverSpacing.sm))
                     Icon(
                         imageVector = item.icon,
                         contentDescription = item.contentDescription ?: item.label,
                         modifier = Modifier.size(24.dp),
                         tint = tint
                     )
-                    Spacer(modifier = Modifier.width(12.dp))
-                    Text(
-                        text = item.label,
-                        style = CloverTypography.itemTitle,
-                        color = tint,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis
-                    )
+                    if (expanded) {
+                        Spacer(modifier = Modifier.width(12.dp))
+                        Text(
+                            text = item.label,
+                            style = CloverTypography.itemTitle,
+                            color = tint,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+                    }
                 }
             }
         }
 
         footer?.invoke()
+
+        if (onToggleExpanded != null) {
+            Box(
+                modifier = Modifier.fillMaxWidth(),
+                contentAlignment = Alignment.Center
+            ) {
+                // 可在此放置展开/收折按钮
+            }
+        }
     }
 }
 

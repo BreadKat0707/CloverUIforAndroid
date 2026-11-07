@@ -59,7 +59,7 @@ data class CloverColorScheme(
 val CloverLightColorScheme = CloverColorScheme(
     primary = Color(0xFF869AFF),
     onPrimary = Color(0xFF000000),
-    secondary = Color(0xFF869AFF),
+    secondary = Color(0xFF7090E0),
     onSecondary = Color(0xFF000000),
     background = Color(0xFFF3F3F3),
     onBackground = Color(0xFF1A1A1A),
@@ -79,7 +79,7 @@ val CloverLightColorScheme = CloverColorScheme(
 val CloverDarkColorScheme = CloverColorScheme(
     primary = Color(0xFF869AFF),
     onPrimary = Color(0xFF000000),
-    secondary = Color(0xFF869AFF),
+    secondary = Color(0xFF7090E0),
     onSecondary = Color(0xFF000000),
     background = Color(0xFF1A1A1A),
     onBackground = Color(0xFFFFFFFF),

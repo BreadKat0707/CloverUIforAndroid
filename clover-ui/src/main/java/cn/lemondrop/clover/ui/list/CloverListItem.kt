@@ -45,25 +45,12 @@ fun CloverListItem(
     isLarge: Boolean = false,
     backgroundColor: Color = Color.Transparent
 ) {
-    val indicatorHeight = when {
-        isPlaying -> 40.dp
-        isSelected -> 24.dp
-        else -> 0.dp
-    }
-
     val indicator: @Composable (() -> Unit) = {
-        if (indicatorHeight > 0.dp) {
-            Box(
-                modifier = Modifier
-                    .width(3.dp)
-                    .height(indicatorHeight)
-                    .clip(RoundedCornerShape(1.5.dp))
-                    .background(LocalCloverColorScheme.current.primary)
-            )
-        } else {
-            // 占位，保持选中/未选中项的 leading 对齐
-            Spacer(modifier = Modifier.width(3.dp))
-        }
+        CloverSelectionIndicator(
+            selected = isSelected,
+            orientation = CloverIndicatorOrientation.Vertical,
+            playing = isPlaying
+        )
     }
 
     CloverBasicItem(

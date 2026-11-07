@@ -107,7 +107,6 @@ fun Modifier.cloverClickable(
     cornerRadius: Dp = CloverSizes.listItemCornerRadius,
     color: Color? = null
 ): Modifier {
-    val isDark = isCloverDark()
     val overlayColor = color ?: (LocalCloverColorScheme.current.onSurface)
         .copy(alpha = CloverPressOverlayAlpha)
     val interactionSource = remember { MutableInteractionSource() }

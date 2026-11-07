@@ -1,5 +1,6 @@
 package cn.lemondrop.clover
 
+import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
@@ -10,6 +11,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -17,8 +19,14 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 
+private val RadioAnimationDuration = 167
+
 /**
- * Clover Design RadioButton
+ * Clover Design RadioButton（WinUI 风格）
+ *
+ * - 20dp 外圈，1.5dp 描边
+ * - 选中时内部 10dp 实心圆点从小到大弹出
+ * - 167ms 颜色/圆点动画
  *
  * @param selected 是否选中
  * @param onClick 点击回调
@@ -34,28 +42,38 @@ fun CloverRadioButton(
 ) {
     val interactionSource = remember { MutableInteractionSource() }
 
-    val borderColor = when {
-        !enabled -> LocalCloverColorScheme.current.onSurfaceVariant.copy(alpha = 0.3f)
+    // 描边色
+    val borderTarget = when {
+        !enabled -> LocalCloverColorScheme.current.onSurfaceVariant
+            .copy(alpha = CloverBasicItemDefaults.DisabledAlpha)
         selected -> LocalCloverColorScheme.current.primary
         else -> LocalCloverColorScheme.current.onSurfaceVariant
     }
+    val border by animateColorAsState(
+        targetValue = borderTarget,
+        animationSpec = tween(RadioAnimationDuration),
+        label = "radioBorder"
+    )
 
-    val dotSize = animateDpAsState(
-        targetValue = if (selected) 10.dp else 0.dp,
-        animationSpec = tween(150),
+    // 内部圆点大小
+    val dotSize by animateDpAsState(
+        targetValue = if (selected) 12.dp else 0.dp,
+        animationSpec = tween(RadioAnimationDuration),
         label = "radioDot"
-    ).value
+    )
+
+    // 圆点色
+    val dotColor = when {
+        !enabled -> LocalCloverColorScheme.current.primary
+            .copy(alpha = CloverBasicItemDefaults.DisabledAlpha)
+        else -> LocalCloverColorScheme.current.primary
+    }
 
     Box(
         modifier = modifier
             .size(22.dp)
             .clip(CircleShape)
-            .background(Color.Transparent)
-            .border(
-                width = 1.5.dp,
-                color = borderColor,
-                shape = CircleShape
-            )
+            .border(1.5.dp, border, CircleShape)
             .clickable(
                 enabled = enabled,
                 interactionSource = interactionSource,
@@ -69,9 +87,7 @@ fun CloverRadioButton(
                 modifier = Modifier
                     .size(dotSize)
                     .clip(CircleShape)
-                    .background(
-                        if (enabled) LocalCloverColorScheme.current.primary else LocalCloverColorScheme.current.primary.copy(alpha = 0.4f)
-                    )
+                    .background(dotColor)
             )
         }
     }

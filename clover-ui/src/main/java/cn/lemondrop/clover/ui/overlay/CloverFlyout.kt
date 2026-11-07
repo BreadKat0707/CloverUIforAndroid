@@ -34,7 +34,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.onSizeChanged
@@ -44,7 +43,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.ui.draw.alpha
 import cn.lemondrop.clover.material.CloverMaterial
-import cn.lemondrop.clover.material.cloverAcrylic
+import cn.lemondrop.clover.material.cloverSolid
 import dev.chrisbanes.haze.HazeState
 import kotlin.math.roundToInt
 
@@ -77,6 +76,7 @@ fun CloverFlyout(
     modifier: Modifier = Modifier,
     anchorBounds: Rect? = null,
     hazeState: HazeState? = null,
+    reveal: Boolean = false,
 ) {
     CloverFlyout(
         visible = visible,
@@ -84,6 +84,7 @@ fun CloverFlyout(
         modifier = modifier,
         anchorBounds = anchorBounds,
         hazeState = hazeState,
+        reveal = reveal,
     ) {
         items.forEach { item ->
             CloverMenuItem(
@@ -118,7 +119,7 @@ fun CloverFlyout(
  * @param onDismiss 关闭回调
  * @param modifier 外部 modifier
  * @param anchorBounds 触发控件边界；null 则右下角弹出
- * @param hazeState 页面级 Haze 源；传入则启用亚克力
+ * @param reveal 是否给面板整体启用 CloverReveal 边缘辉光（默认 false）
  * @param content 菜单内容，通常配合 [CloverMenuItem]
  */
 @Composable
@@ -128,6 +129,7 @@ fun CloverFlyout(
     modifier: Modifier = Modifier,
     anchorBounds: Rect? = null,
     hazeState: HazeState? = null,
+    reveal: Boolean = false,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val scrimColor = LocalCloverColorScheme.current.scrim.copy(alpha = CloverFlyoutDefaults.scrimAlpha)
@@ -162,46 +164,46 @@ fun CloverFlyout(
 
         if (anchorBounds != null) {
             // 智能锚定定位
-            val panelWpx = with(density) { CloverFlyoutDefaults.width.toPx() }
-            val gapPx = with(density) { CloverFlyoutDefaults.anchorGap.toPx() }
-            val marginPx = with(density) { CloverFlyoutDefaults.screenEdgePadding.toPx() }
-            val statusTopPx = with(density) { statusTop.toPx() }
-            val navBottomPx = with(density) { navBottom.toPx() }
-            val containerWpx = constraints.maxWidth.toFloat()
-            val containerHpx = constraints.maxHeight.toFloat()
-
-            val fitsBelow =
-                anchorBounds.bottom + gapPx + panelHeightPx <= containerHpx - navBottomPx - marginPx
-            val yPx = if (fitsBelow) {
-                anchorBounds.bottom + gapPx
-            } else {
-                (anchorBounds.top - gapPx - panelHeightPx).coerceAtLeast(statusTopPx + marginPx)
-            }
-            val maxX = (containerWpx - marginPx - panelWpx).coerceAtLeast(marginPx)
-            val xPx = (anchorBounds.right - panelWpx).coerceIn(marginPx, maxX)
-            val pivotX = if (panelWpx > 0f) {
-                ((anchorBounds.center.x - xPx) / panelWpx).coerceIn(0f, 1f)
-            } else {
-                1f
-            }
-            val transformOrigin = TransformOrigin(pivotX, if (fitsBelow) 0f else 1f)
+            val metrics = computePxMetrics(
+                panelWidth = CloverFlyoutDefaults.width,
+                gap = CloverFlyoutDefaults.anchorGap,
+                margin = CloverFlyoutDefaults.screenEdgePadding,
+                statusTop = statusTop,
+                navBottom = navBottom,
+                containerWidthPx = constraints.maxWidth.toFloat(),
+                containerHeightPx = constraints.maxHeight.toFloat(),
+                density = density
+            )
+            val position = calculateAnchoredPosition(
+                anchorBounds = anchorBounds,
+                panelWidthPx = metrics.panelWidthPx,
+                panelHeightPx = panelHeightPx,
+                gapPx = metrics.gapPx,
+                marginPx = metrics.marginPx,
+                statusTopPx = metrics.statusTopPx,
+                navBottomPx = metrics.navBottomPx,
+                containerWidthPx = metrics.containerWidthPx,
+                containerHeightPx = metrics.containerHeightPx,
+                horizontalAlign = AnchorHorizontalAlign.Right
+            )
 
             AnimatedVisibility(
                 visible = visible,
-                modifier = Modifier.offset { IntOffset(xPx.roundToInt(), yPx.roundToInt()) },
+                modifier = Modifier.offset { IntOffset(position.xPx.roundToInt(), position.yPx.roundToInt()) },
                 enter = fadeIn(animationSpec = tween(200)) + scaleIn(
                     initialScale = CloverFlyoutDefaults.initialScale,
                     animationSpec = tween(250, easing = FastOutSlowInEasing),
-                    transformOrigin = transformOrigin,
+                    transformOrigin = position.transformOrigin,
                 ),
                 exit = fadeOut(animationSpec = tween(150)) + scaleOut(
                     targetScale = CloverFlyoutDefaults.initialScale,
                     animationSpec = tween(180),
-                    transformOrigin = transformOrigin,
+                    transformOrigin = position.transformOrigin,
                 ),
             ) {
                 FlyoutPanel(
                     hazeState = hazeState,
+                    reveal = reveal,
                     onMeasured = {
                         panelHeightPx = it
                         isPanelMeasured = true
@@ -236,6 +238,7 @@ fun CloverFlyout(
                 ) {
                     FlyoutPanel(
                         hazeState = hazeState,
+                        reveal = reveal,
                         onMeasured = {
                             panelHeightPx = it
                             isPanelMeasured = true
@@ -255,27 +258,26 @@ fun CloverFlyout(
 @Composable
 private fun FlyoutPanel(
     hazeState: HazeState?,
+    reveal: Boolean,
     onMeasured: (Int) -> Unit,
     modifier: Modifier = Modifier,
     content: @Composable ColumnScope.() -> Unit,
 ) {
     val surface = LocalCloverColorScheme.current.surface
+    val shape = RoundedCornerShape(CloverFlyoutDefaults.cornerRadius)
     val base = modifier
         .width(CloverFlyoutDefaults.width)
         .onSizeChanged { onMeasured(it.height) }
-        .clip(RoundedCornerShape(CloverFlyoutDefaults.cornerRadius))
+        .clip(shape)
     val panelModifier = if (hazeState != null) {
         base
-            .background(surface) // Haze 失效时的保底背景
-            .cloverAcrylic(
-                state = hazeState,
-                backgroundColor = Color.Transparent,
-                tints = CloverMaterial.Acrylic.tints(baseColor = surface),
-                blurRadius = CloverFlyoutDefaults.blurRadius,
-            )
+            .cloverSolid(
+                        backgroundColor = CloverMaterial.Solid.backgroundColor()
+                    )
     } else {
         base.background(surface)
     }
+        .let { if (reveal) it.cloverReveal(shape = shape) else it }
     Column(
         modifier = panelModifier
             .clickable(
@@ -296,8 +298,7 @@ object CloverFlyoutDefaults {
     val cornerRadius = CloverSizes.menuCornerRadius
     val contentVerticalPadding = 10.dp
     val screenEdgePadding = 4.dp
-    val scrimAlpha = 0.3f
+    val scrimAlpha = 0.32f
     val initialScale = 0.85f
-    val blurRadius = 40.dp
     val anchorGap = 4.dp
 }

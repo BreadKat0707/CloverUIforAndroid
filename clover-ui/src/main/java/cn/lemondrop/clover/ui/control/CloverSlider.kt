@@ -43,9 +43,9 @@ fun CloverSlider(
             thumbColor = accent,
             activeTrackColor = accent,
             inactiveTrackColor = trackInactive,
-            disabledThumbColor = accent.copy(alpha = 0.4f),
-            disabledActiveTrackColor = accent.copy(alpha = 0.4f),
-            disabledInactiveTrackColor = trackInactive.copy(alpha = 0.4f)
+            disabledThumbColor = accent.copy(alpha = CloverBasicItemDefaults.DisabledAlpha),
+            disabledActiveTrackColor = accent.copy(alpha = CloverBasicItemDefaults.DisabledAlpha),
+            disabledInactiveTrackColor = trackInactive.copy(alpha = CloverBasicItemDefaults.DisabledAlpha)
         )
     )
 }
